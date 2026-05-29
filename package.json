@@ -30,7 +30,10 @@
     "vite": "^5.2.0"
   },
   "dependencies": {
+    "@reown/walletkit": "^1.5.5",
     "@stellar/stellar-sdk": "^12.0.0-rc.3",
+    "@walletconnect/core": "^2.23.9",
+    "@walletconnect/utils": "^2.23.9",
     "eventsource": "^2.0.2",
     "qrious": "^4.0.2"
   }
