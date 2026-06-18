@@ -11,15 +11,12 @@
 		Avatar,
 	} from 'flowbite-svelte';
 	import { BellSolid, EyeSolid } from 'flowbite-svelte-icons';
-	import { 
-		eventSourceListener, 
-		horizonEventSource,
-		paymentRealized,
-		paymentDone,
-		getTransactionsHistory
-	} from '../service/blockchains/stellar';
+	import { eventSourceListener } from '../service/blockchains/stellar';
+	//import { getTransactions } from '../service/blockchains/stellar';
+	import { horizonEventSource } from '../service/blockchains/stellar';
+	import { paymentsdones } from '../service/blockchains/stellar';
+	import { paymentRealized } from '../service/blockchains/stellar';
 	import { createEventDispatcher } from 'svelte';
-	
 	export let address: string;
 	export let pasword: string;
 
@@ -52,65 +49,52 @@
 	function pagar() {
 		openModalPagar = true;
 	}
-
-	export let listTransactions: any[] = [];
-
-	// Función para cargar el historial de transacciones de Horizon
-	async function cargarHistorial() {
-		if (address && address.length === 56) {
-			listTransactions = await getTransactionsHistory(address);
-		} else {
-			listTransactions = [];
-		}
-	}
-
-	$: if (address && address.length === 56) {
-		getBalance(address).then((res) => {
-			saldo = res;
-		});
-		cargarHistorial();
+	getBalance(address).then((res) => {
+		saldo = res;
+	});
+	export let listTransactions:object[]=[]
+	$: if (address.length == 56) {
 
 		eventSourceListener(
 			address,
 			async (res: any) => {
 				console.info('me llego un mensaje', res);
-				cargarHistorial();
+				listTransactions.push(res)
 				saldo = await getBalance(address);
+				console.log(listTransactions)
 			},
 			(msgError: any) => {
 				//console.error('me paso algo malisimo', msgError);
 			},
 		);
+		
 	}
-
-	$: if (!address || address.length !== 56) {
-		listTransactions = [];
+	$: if (address.length !== 56) {
+		listTransactions=[]
 		horizonEventSource?.close();
+		console.log(saldo);
 		saldo = 0;
 	}
-
 	const dispatcher = createEventDispatcher();
-	
-	// Reaccionar al estado de la transacción utilizando los stores de Svelte
-	$: if ($paymentRealized === 'hecho' || $paymentRealized === 'fallido') {
-		if ($paymentDone) {
-			dispatcher('paymentDone', $paymentDone);
-		}
+	$: if (paymentRealized) {
+		dispatcher('paymentDone', paymentDone);
 		getBalance(address).then((res) => {
 			saldo = res;
 		});
-		cargarHistorial();
 	}
 
+	/*De esta manera se ejecutaria una transacción en la testnet de stellar*/
 	import InputPagar from './InputPagar.svelte';
+	import { get } from 'svelte/store';
+
+	let paymentDone: PaymentDone | null = null;
 
 	function manejarPagoRealizado(event: CustomEvent<PaymentDone>) {
-		openModalPagar = false;
-		// Dejamos que el alert se muestre por 5 segundos y luego limpiamos el store
+		paymentDone = event.detail;
 		setTimeout(() => {
-			paymentDone.set(null);
-			paymentRealized.set('idle');
+			paymentDone = null;
 		}, 5000);
+		openModalPagar = false;
 	}
 </script>
 
@@ -122,7 +106,7 @@
 
 <Modal bind:open={openModalWalletSaldoHistory} autoclose>
 	<div class="m-auto flex justify-center">
-		<WalletSaldoHistory {listTransactions} {address} />
+		<WalletSaldoHistory />
 	</div>
 </Modal>
 
@@ -140,7 +124,7 @@
 
 <div class="flex items-center flex-wrap gap-4">
 
-	<h1 class="text-slate-200 text-3xl sixa-max">{saldoFormateado}</h1>
+	<h1 class="text-gray-800 text-3xl sixa-max">{saldoFormateado}</h1>
 	<ButtonGroup>
 		<Button
 			class="bg-gray-300"
@@ -173,7 +157,7 @@
 				/>
 			</svg>
 		</Button>
-		<Button class="bg-gray-300" outline color="light" on:click={pagar} disabled={address.length != 56 || pasword.length != 56}>
+		<Button class="bg-gray-300" outline color="light" on:click={pagar} disabled={address.length != 56 && pasword.length != 56}>
 			Pagar
 			<svg
 				class="w-6 h-6 text-gray-800 dark:text-white"
@@ -183,7 +167,7 @@
 				height="24"
 				fill="none"
 				viewBox="0 0 24 24"
-			>
+>
 				<path
 					stroke="currentColor"
 					stroke-linecap="round"
@@ -191,6 +175,7 @@
 					stroke-width="2"
 					d="M8 17.345a4.76 4.76 0 0 0 2.558 1.618c2.274.589 4.512-.446 4.999-2.31.487-1.866-1.273-3.9-3.546-4.49-2.273-.59-4.034-2.623-3.547-4.488.486-1.865 2.724-2.899 4.998-2.31.982.236 1.87.793 2.538 1.592m-3.879 12.171V21m0-18v2.2"
 				/>
+				
 			</svg>
 		</Button >
 		<Button
@@ -215,58 +200,50 @@
 			</svg>
 		</Button>
 	</ButtonGroup>
-	
-	<div class="payRealized w-full mt-4">
-		{#if $paymentRealized === 'proceso'}
-			<div class="flex items-center justify-center gap-2 p-3 bg-slate-800/80 border border-blue-500/30 text-blue-400 rounded-xl">
-				<div class="loader"></div>
-				<span>Procesando pago en la Testnet...</span>
-			</div>
-		{/if}
+	<div class="payRealized ">
 
-		{#if $paymentRealized === 'hecho' && $paymentDone}
+		{#if paymentDone}
+		{#if paymentRealized=="proceso"}
+		<div class="loader"></div>
+		{/if}
+		{#if paymentRealized=="hecho"}
 			<div
-				class="bg-green-950/40 border border-green-500/50 text-green-300 px-4 py-3 rounded-xl relative flex flex-col gap-1"
+				class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
 				role="alert"
 			>
-				<div class="flex items-center gap-2">
-					<span class="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
-					<strong class="font-bold text-green-400">¡Pago realizado con éxito!</strong>
-				</div>
-				<span class="text-sm block">
-					Se enviaron <strong class="text-white">{$paymentDone.amount} XLM</strong> a 
-					<code class="bg-black/30 px-1 py-0.5 rounded text-xs">{$paymentDone.destination.slice(0, 8)}...{$paymentDone.destination.slice(-8)}</code>
-				</span>
+				<strong class="font-bold">Pago realizado!</strong>
+				<span class="block sm:inline"
+					>Se envió {paymentDone.amount} a {paymentDone.destination}</span
+				>
 			</div>
 		{/if}
-
-		{#if $paymentRealized === 'fallido' && $paymentDone}
-			{#if $paymentDone.amount == undefined || $paymentDone.amount <= 0}
-				<div
-					class="bg-red-950/40 border border-red-500/50 text-red-300 px-4 py-3 rounded-xl relative"
-					role="alert"
+		{#if paymentRealized=="fallido" && (paymentDone.amount==undefined || paymentDone.amount<=0)}
+			<div
+				class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+				role="alert"
+			>
+				<strong class="font-bold">¡No se pueden enviar montos nulos o negativos!</strong>
+			</div>
+		{/if}
+		{#if paymentRealized=="fallido" && (paymentDone.destination==undefined || paymentDone.destination.length!==56)}
+			<div
+				class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+				role="alert"
+			>
+				<strong class="font-bold">¡Cuenta de destino invalida!</strong>
+			</div>
+		{/if}
+		{#if paymentRealized=="fallido" && (paymentDone.amount!==undefined && paymentDone.amount>0 ) && ( paymentDone.destination!==undefined && paymentDone.destination.length==56 )}
+			<div
+				class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+				role="alert"
+			>
+				<strong class="font-bold">Pago fallido!</strong>
+				<span class="block sm:inline"
+					>No se pudo enviar {paymentDone.amount} a {paymentDone.destination}</span
 				>
-					<strong class="font-bold text-red-400">Error:</strong> ¡No se pueden enviar montos nulos o negativos!
-				</div>
-			{:else if $paymentDone.destination == undefined || $paymentDone.destination.length !== 56}
-				<div
-					class="bg-red-950/40 border border-red-500/50 text-red-300 px-4 py-3 rounded-xl relative"
-					role="alert"
-				>
-					<strong class="font-bold text-red-400">Error:</strong> ¡Cuenta de destino inválida! (Debe tener 56 caracteres)
-				</div>
-			{:else}
-				<div
-					class="bg-red-950/40 border border-red-500/50 text-red-300 px-4 py-3 rounded-xl relative flex flex-col gap-1"
-					role="alert"
-				>
-					<strong class="font-bold text-red-400">¡Pago fallido!</strong>
-					<span class="text-sm block">
-						No se pudo enviar {$paymentDone.amount} XLM a 
-						<code class="bg-black/30 px-1 py-0.5 rounded text-xs">{$paymentDone.destination.slice(0, 8)}...{$paymentDone.destination.slice(-8)}</code>. Verifica los fondos o la dirección.
-					</span>
-				</div>
-			{/if}
+			</div>
+		{/if}
 		{/if}
 	</div>
 </div>
