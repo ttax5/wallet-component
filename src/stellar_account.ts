@@ -8,3 +8,4 @@ export const stellarAccount2 = {
 };
 
 export const stellarNetwork = 'https://horizon-testnet.stellar.org/';
+
