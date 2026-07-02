@@ -402,7 +402,7 @@ export function subscribeToPayments(account: string) {
 	}
 
 	const baseUrl = stellarNetwork.endsWith('/') ? stellarNetwork.slice(0, -1) : stellarNetwork;
-	horizonEventSource = new EventSource(`${baseUrl}/accounts/${account}/payments`);
+	horizonEventSource = new EventSource(`${baseUrl}/accounts/${account}/payments?cursor=now`);
 	
 	horizonEventSource.onmessage = async (message) => {
 		try {

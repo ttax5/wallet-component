@@ -5,6 +5,7 @@ import type { GoogleUser, StellarAccount } from '../types';
 import { auth, db } from './firebase';
 import { GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Keypair } from '@stellar/stellar-sdk';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '912634358485-mockclientid12345.apps.googleusercontent.com';
 
@@ -182,22 +183,53 @@ export async function authenticateWithGoogle(googleUser: GoogleUser) {
 
 // Iniciar sesión en modo Desarrollador
 export async function authenticateDeveloper(pubKey: string, privKey: string) {
-	if (pubKey.length !== 56 || privKey.length !== 56) {
-		addNotification('error', 'Llaves Inválidas', 'Las claves de Stellar deben tener exactamente 56 caracteres.');
+	const cleanPubKey = pubKey.trim().toUpperCase();
+	const cleanPrivKey = privKey.trim().toUpperCase();
+
+	// 1. Validar longitud y prefijos estándar de Stellar
+	if (!cleanPubKey.startsWith('G') || cleanPubKey.length !== 56) {
+		addNotification('error', 'Llave Pública Inválida', 'La dirección pública Stellar debe comenzar con "G" y tener 56 caracteres.');
 		return false;
 	}
-	const stellarAccount: StellarAccount = { pubKey, privKey };
-	loginDeveloper(stellarAccount);
-	addNotification('security', 'Modo Desarrollador Activo', 'Has ingresado con tus llaves manuales.');
-	return true;
+	if (!cleanPrivKey.startsWith('S') || cleanPrivKey.length !== 56) {
+		addNotification('error', 'Llave Privada Inválida', 'La clave privada Stellar debe comenzar con "S" y tener 56 caracteres.');
+		return false;
+	}
+
+	try {
+		// 2. Intentar inicializar el par de claves desde la clave secreta
+		const keypair = Keypair.fromSecret(cleanPrivKey);
+		
+		// 3. Derivar la clave pública y compararla con la ingresada
+		const derivedPubKey = keypair.publicKey();
+		
+		if (derivedPubKey !== cleanPubKey) {
+			addNotification(
+				'error',
+				'Llaves No Coinciden',
+				'La clave privada ingresada no corresponde a la dirección pública proporcionada.'
+			);
+			return false;
+		}
+
+		const stellarAccount: StellarAccount = { pubKey: cleanPubKey, privKey: cleanPrivKey };
+		loginDeveloper(stellarAccount);
+		addNotification('security', 'Modo Desarrollador Activo', 'Has ingresado con tus llaves manuales.');
+		return true;
+	} catch (error) {
+		console.error('Error al validar las claves de desarrollador:', error);
+		addNotification('error', 'Autenticación Fallida', 'La clave secreta ingresada no es una clave privada de Stellar válida.');
+		return false;
+	}
 }
 
 // Recuperar acceso importando una llave privada
 export async function recoverAccount(privKey: string, googleUser?: GoogleUser): Promise<boolean> {
 	try {
-		const keypair = await import('@stellar/stellar-sdk').then(m => m.Keypair.fromSecret(privKey));
+		const cleanPrivKey = privKey.trim().toUpperCase();
+		const keypair = Keypair.fromSecret(cleanPrivKey);
 		const pubKey = keypair.publicKey();
-		const stellarAccount: StellarAccount = { pubKey, privKey };
+		const stellarAccount: StellarAccount = { pubKey, privKey: cleanPrivKey };
 
 		// Si hay un usuario autenticado en Firebase, guardar las llaves recuperadas en Firestore
 		if (auth.currentUser) {

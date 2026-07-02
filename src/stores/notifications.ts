@@ -1,29 +1,49 @@
 import { writable, derived } from 'svelte/store';
 import type { AppNotification } from '../types';
+import { session } from './session';
 
-const getStoredNotifications = (): AppNotification[] => {
-	try {
-		const stored = localStorage.getItem('paxapos_notifications');
-		if (stored) {
-			const parsed = JSON.parse(stored);
-			return parsed.map((n: any) => ({
-				...n,
-				timestamp: new Date(n.timestamp)
-			}));
+export const notifications = writable<AppNotification[]>([]);
+
+let currentPubKey = '';
+
+// Suscribirse al store de sesión para cargar/limpiar notificaciones reactivamente por usuario
+session.subscribe($session => {
+	const pubKey = $session.isAuthenticated && $session.stellarAccount?.pubKey 
+		? $session.stellarAccount.pubKey 
+		: '';
+
+	if (pubKey !== currentPubKey) {
+		currentPubKey = pubKey;
+		if (pubKey) {
+			try {
+				const stored = localStorage.getItem(`paxapos_notifications_${pubKey}`);
+				if (stored) {
+					const parsed = JSON.parse(stored);
+					notifications.set(parsed.map((n: any) => ({
+						...n,
+						timestamp: new Date(n.timestamp)
+					})));
+				} else {
+					notifications.set([]);
+				}
+			} catch (e) {
+				console.error('Error al cargar notificaciones para el usuario', e);
+				notifications.set([]);
+			}
+		} else {
+			notifications.set([]);
 		}
-	} catch (e) {
-		console.error('Error al cargar notificaciones', e);
 	}
-	return [];
-};
+});
 
-export const notifications = writable<AppNotification[]>(getStoredNotifications());
-
+// Guardar notificaciones automáticamente al cambiar
 notifications.subscribe(value => {
-	try {
-		localStorage.setItem('paxapos_notifications', JSON.stringify(value));
-	} catch (e) {
-		console.error('Error al guardar notificaciones', e);
+	if (currentPubKey) {
+		try {
+			localStorage.setItem(`paxapos_notifications_${currentPubKey}`, JSON.stringify(value));
+		} catch (e) {
+			console.error('Error al guardar notificaciones', e);
+		}
 	}
 });
 
