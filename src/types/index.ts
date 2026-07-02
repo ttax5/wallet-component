@@ -3,6 +3,7 @@ export interface GoogleUser {
 	name: string;
 	picture: string;
 	id?: string;
+	credentialToken?: string;
 }
 
 export interface StellarAccount {

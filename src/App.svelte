@@ -8,14 +8,24 @@
 	import HistoryList from './components/HistoryList.svelte';
 	import AuthPage from './components/AuthPage.svelte';
 	import NotificationCenter from './components/NotificationCenter.svelte';
-	
+
 	import { session } from './stores/session';
 	import { unreadCount } from './stores/notifications';
 	import { subscribeToPayments, unsubscribeFromPayments, loadBalances, loadTransactionsHistory } from './services/stellar';
 	import type { ViewType } from './types';
+	import { fade } from 'svelte/transition';
 
 	let activeTab: ViewType = 'dashboard';
 	let notificationCenterOpen = false;
+	let mobileOpen = false;
+
+	$: if (typeof document !== 'undefined') {
+		if (mobileOpen) {
+			document.body.style.overflow = 'hidden';
+		} else {
+			document.body.style.overflow = '';
+		}
+	}
 
 	// Iniciar o detener la escucha de la testnet de Stellar reactivamente
 	$: if ($session.isAuthenticated && $session.stellarAccount?.pubKey) {
@@ -51,7 +61,18 @@
 	<!-- Dashboard del Comercio Completo -->
 	<div class="flex min-h-screen text-slate-100 relative z-10">
 		<!-- Sidebar Lateral -->
-		<Sidebar bind:activeTab />
+		<Sidebar bind:activeTab bind:mobileOpen />
+
+		<!-- Backdrop overlay para cerrar sidebar móvil -->
+		{#if mobileOpen}
+			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
+			<div 
+				on:click={() => mobileOpen = false} 
+				transition:fade={{ duration: 200 }}
+				class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-30 md:hidden"
+			></div>
+		{/if}
 
 		<!-- Contenido Principal -->
 		<div class="flex-1 flex flex-col min-w-0 bg-slate-950/20">
@@ -59,6 +80,17 @@
 			<header class="h-16 border-b border-slate-850 bg-slate-900/60 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between px-6">
 				<!-- Ruta / Título -->
 				<div class="flex items-center gap-2 text-xs font-semibold text-slate-400">
+					<!-- Botón Hamburguesa Móvil -->
+					<button
+						on:click={() => mobileOpen = true}
+						class="p-2 -ml-2 mr-1 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-150 transition-all md:hidden flex items-center justify-center"
+						aria-label="Abrir menú"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+						</svg>
+					</button>
+
 					<span>Comercio</span>
 					<span>/</span>
 					<span class="text-indigo-400 font-bold">{getTitle(activeTab)}</span>

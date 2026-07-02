@@ -4,11 +4,17 @@ import { stellarNetwork } from '../stellar_account';
 import type { AssetBalance, StellarAccount, PaymentDone } from '../types';
 import { addNotification } from '../stores/notifications';
 import { balances as balancesStore, loadingBalances, transactions as transactionsStore, loadingTransactions } from '../stores/wallet';
+import { db, auth } from './firebase';
+import { doc, setDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 const server = new StellarSdk.Horizon.Server(stellarNetwork);
 const network = Networks.TESTNET;
 
 export let horizonEventSource: EventSource | null = null;
+
+// Faucet / Emisor central de USDC y USDT en Testnet para pruebas
+const FAUCET_PUB = 'GAZTQJBGXOXT5C34JH3RDHYLMFAANXMQLBKJKOEMVBBEAVOB3HHSSAUD';
+const FAUCET_PRIV = 'SBYVPORGBKBYGLGHPDZ7BIFZR5LL666I25YXXLS3GP3ZEU4BOCONXYY2';
 
 // Lista de activos admitidos por defecto en nuestra interfaz
 export const SUPPORTED_ASSETS = [
@@ -23,17 +29,82 @@ export const SUPPORTED_ASSETS = [
 		code: 'USDC',
 		name: 'USD Coin',
 		logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-		issuer: 'GBBD7DYKDNKXSTDDOUEXGURX24YNOSTF4A5N4T5YFHW3HHDXT3I5EBW7',
+		issuer: FAUCET_PUB,
 		type: 'credit_alphanum4'
 	},
 	{
 		code: 'USDT',
 		name: 'Tether USD',
 		logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-		issuer: 'GC56O2GBBY5O462QCQA6MQBLJQLMIZDJWHL6L657WOOW3W66QTM4A244',
+		issuer: FAUCET_PUB,
 		type: 'credit_alphanum4'
 	}
 ];
+
+// Helper para sincronizar transacciones en Firestore
+export async function syncTransactionToFirestore(uid: string, record: any) {
+	try {
+		const txHash = record.transaction_hash || record.hash;
+		if (!txHash) return;
+		const txRef = doc(db, 'users', uid, 'transactions', txHash);
+		
+		const dataToSave = {
+			id: record.id || txHash,
+			type: record.type || 'payment',
+			created_at: record.created_at || new Date().toISOString(),
+			transaction_hash: txHash,
+			from: record.from || '',
+			to: record.to || '',
+			amount: record.amount || '0',
+			asset_code: record.asset_code || 'XLM',
+			asset_issuer: record.asset_issuer || '',
+			funder: record.funder || '',
+			account: record.account || '',
+			starting_balance: record.starting_balance || '0'
+		};
+		
+		await setDoc(txRef, dataToSave, { merge: true });
+	} catch (e) {
+		console.error("Error al guardar transacción en Firestore:", e);
+	}
+}
+
+// Faucet automático para activos secundarios
+export async function fundWithFaucet(userPubKey: string, assetCode: string, assetIssuer: string) {
+	try {
+		console.log(`Fondeando 1000 ${assetCode} al usuario desde Faucet...`);
+		const faucetKeys = StellarSdk.Keypair.fromSecret(FAUCET_PRIV);
+		const faucetAccount = await server.loadAccount(FAUCET_PUB);
+
+		const asset = new Asset(assetCode, assetIssuer);
+		const transaction = new StellarSdk.TransactionBuilder(faucetAccount, {
+			fee: StellarSdk.BASE_FEE,
+			networkPassphrase: network,
+		})
+		.addOperation(
+			Operation.payment({
+				destination: userPubKey,
+				asset: asset,
+				amount: '1000.0000000'
+			})
+		)
+		.setTimeout(180)
+		.build();
+
+		transaction.sign(faucetKeys);
+		await server.submitTransaction(transaction);
+		
+		addNotification(
+			'payment_received',
+			'Saldo Inicial Recibido',
+			`¡El Faucet te ha enviado 1000 ${assetCode} de prueba!`,
+			1000,
+			assetCode
+		);
+	} catch (err) {
+		console.error(`Error al fondear ${assetCode} con Faucet:`, err);
+	}
+}
 
 // Cargar saldos de la cuenta e integrar metadatos y conversión a USD
 export async function loadBalances(address: string) {
@@ -57,7 +128,6 @@ export async function loadBalances(address: string) {
 			});
 
 			const balanceVal = found ? parseFloat(found.balance) : 0;
-			// Simulamos un valor en dólares (XLM ~ 0.12 USD, stablecoins 1.00 USD)
 			const rate = supported.code === 'XLM' ? 0.12 : 1.0;
 			const usdValue = balanceVal * rate;
 
@@ -72,7 +142,6 @@ export async function loadBalances(address: string) {
 			};
 		});
 
-		// Cargar también otros tokens personalizados del usuario
 		horizonBalances.forEach(hb => {
 			if (hb.asset_type === 'native') return;
 			const b = hb as { asset_code?: string; asset_issuer?: string; balance: string };
@@ -95,7 +164,6 @@ export async function loadBalances(address: string) {
 	} catch (error: any) {
 		console.error('Error al cargar balances:', error);
 		if (error.response && error.response.status === 404) {
-			// Cuenta no activada en Testnet
 			const unactivatedBalances: AssetBalance[] = SUPPORTED_ASSETS.map(supported => ({
 				code: supported.code,
 				name: supported.name,
@@ -122,13 +190,34 @@ export async function loadTransactionsHistory(address: string) {
 	}
 	loadingTransactions.set(true);
 	try {
+		// 1. Consultar de Horizon directamente (Blockchain real)
 		const response = await server
 			.payments()
 			.forAccount(address)
 			.order('desc')
 			.limit(15)
 			.call();
-		transactionsStore.set(response.records);
+		
+		// 2. Si el usuario está en Firebase, sincronizar transacciones en Firestore
+		const firebaseUser = auth.currentUser;
+		if (firebaseUser) {
+			for (const record of response.records) {
+				await syncTransactionToFirestore(firebaseUser.uid, record);
+			}
+
+			// 3. Consultar y ordenar desde Firestore
+			const snap = await getDocs(
+				query(
+					collection(db, 'users', firebaseUser.uid, 'transactions'),
+					orderBy('created_at', 'desc'),
+					limit(15)
+				)
+			);
+			const localRecords = snap.docs.map(doc => doc.data());
+			transactionsStore.set(localRecords);
+		} else {
+			transactionsStore.set(response.records);
+		}
 	} catch (error) {
 		console.error('Error al cargar historial de pagos:', error);
 		transactionsStore.set([]);
@@ -161,7 +250,17 @@ export async function establishTrustline(payer: StellarAccount, assetCode: strin
 		await server.submitTransaction(transaction);
 		
 		addNotification('trustline', 'Activo Habilitado', `Has establecido la confianza (trustline) para ${assetCode}.`);
-		await loadBalances(payer.pubKey);
+		
+		// Si es USDC o USDT y usa nuestro Faucet, enviar saldo inicial automáticamente
+		if (assetIssuer === FAUCET_PUB) {
+			setTimeout(async () => {
+				await fundWithFaucet(payer.pubKey, assetCode, assetIssuer);
+				await loadBalances(payer.pubKey);
+			}, 2000);
+		} else {
+			await loadBalances(payer.pubKey);
+		}
+		
 		return true;
 	} catch (e) {
 		console.error('Error al establecer trustline:', e);
@@ -183,7 +282,6 @@ export async function createPayment(
 		const sourceKeys = StellarSdk.Keypair.fromSecret(payer.privKey);
 		const sourceAccount = await server.loadAccount(payer.pubKey);
 
-		// Verificar si el destinatario existe en Stellar
 		let destinationExists = true;
 		try {
 			await server.accounts().accountId(beneficiary).call();
@@ -206,7 +304,6 @@ export async function createPayment(
 		});
 
 		if (assetCode === 'XLM' && !destinationExists) {
-			// Crear la cuenta si no existe y es XLM
 			transactionBuilder.addOperation(
 				Operation.createAccount({
 					destination: beneficiary,
@@ -219,7 +316,6 @@ export async function createPayment(
 				return null;
 			}
 
-			// Validar trustline para tokens en el destinatario
 			if (assetCode !== 'XLM' && assetIssuer) {
 				const destInfo = await server.accounts().accountId(beneficiary).call();
 				const hasTrust = destInfo.balances.some(b => {
@@ -267,6 +363,26 @@ export async function createPayment(
 			assetCode
 		);
 
+		// Sincronizar en Firestore
+		const firebaseUser = auth.currentUser;
+		if (firebaseUser) {
+			const mockRecord = {
+				id: result.hash,
+				type: 'payment',
+				created_at: new Date().toISOString(),
+				transaction_hash: result.hash,
+				from: payer.pubKey,
+				to: beneficiary,
+				amount: String(monto),
+				asset_code: assetCode,
+				asset_issuer: assetIssuer || '',
+				funder: '',
+				account: '',
+				starting_balance: '0'
+			};
+			await syncTransactionToFirestore(firebaseUser.uid, mockRecord);
+		}
+
 		// Recargar estados de forma inmediata
 		await loadBalances(payer.pubKey);
 		await loadTransactionsHistory(payer.pubKey);
@@ -292,7 +408,6 @@ export function subscribeToPayments(account: string) {
 		try {
 			const record = JSON.parse(message.data);
 			
-			// Detectar si es un pago entrante
 			const isIncomingPayment = record.type === 'payment' && record.to === account && record.from !== account;
 			const isIncomingCreation = record.type === 'create_account' && record.account === account && record.funder !== account;
 
@@ -308,6 +423,12 @@ export function subscribeToPayments(account: string) {
 					amount,
 					code
 				);
+
+				// Sincronizar en Firestore
+				const firebaseUser = auth.currentUser;
+				if (firebaseUser) {
+					await syncTransactionToFirestore(firebaseUser.uid, record);
+				}
 
 				// Actualizar balances e historial en segundo plano
 				await loadBalances(account);
@@ -346,3 +467,4 @@ export async function crearYFondearWalletTestnet() {
 		secretKey,
 	};
 }
+

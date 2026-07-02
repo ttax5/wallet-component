@@ -3,6 +3,7 @@
 	import type { ViewType } from '../types';
 
 	export let activeTab: ViewType = 'dashboard';
+	export let mobileOpen = false;
 	let isCollapsed = false;
 
 	const menuItems: { id: ViewType; label: string; iconPath: string }[] = [
@@ -59,8 +60,8 @@
 </script>
 
 <aside 
-	class="sidebar flex flex-col justify-between h-screen sticky top-0 bg-slate-900/80 border-r border-slate-800 transition-all duration-300 z-30 backdrop-blur-xl 
-	{isCollapsed ? 'w-20' : 'w-64'}"
+	class="sidebar flex flex-col justify-between h-screen fixed md:sticky top-0 left-0 bg-slate-900/80 border-r border-slate-800 transition-all duration-300 z-40 backdrop-blur-xl 
+	{isCollapsed ? 'w-20' : 'w-64'} {mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}"
 >
 	<div>
 		<!-- Logo y Botón Colapsar -->
@@ -82,7 +83,7 @@
 			
 			<button 
 				on:click={toggleSidebar} 
-				class="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 transition-colors"
+				class="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 transition-colors hidden md:inline-flex"
 				aria-label="Colapsar menú"
 			>
 				<svg class="w-5 h-5 transform {isCollapsed ? 'rotate-180' : ''} transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,7 +100,10 @@
 					{activeTab === item.id 
 						? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-600/10' 
 						: 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}"
-					on:click={() => activeTab = item.id}
+					on:click={() => {
+						activeTab = item.id;
+						mobileOpen = false;
+					}}
 				>
 					<svg class="w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-105" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={item.iconPath}></path>

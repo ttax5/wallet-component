@@ -21,12 +21,42 @@
 		activeTrustlines = $balances.filter(item => item.code !== 'XLM' && item.hasTrustline).length;
 		trustlinePercent = (activeTrustlines / totalTrustlines) * 100;
 		
-		// Simular ventas en base al historial real de Horizon para dar dinamismo
-		const receivedTxs = $transactions.filter(tx => tx.type === 'payment' && tx.to === $session.stellarAccount.pubKey);
-		const baseToday = receivedTxs.length * 12.5;
-		const baseMonth = receivedTxs.length * 240 + 150;
-		salesToday = baseToday > 0 ? baseToday : 0;
-		salesMonth = baseMonth > 150 ? baseMonth : 150;
+		// Filtrar cobros/pagos recibidos reales
+		const receivedTxs = $transactions.filter(tx => {
+			const isCreate = tx.type === 'create_account';
+			const sender = isCreate ? tx.funder : tx.from;
+			const receiver = isCreate ? tx.account : tx.to;
+			const isIncoming = receiver === $session.stellarAccount?.pubKey && sender !== $session.stellarAccount?.pubKey;
+			return isIncoming;
+		});
+
+		// Calcular cobros reales de hoy
+		const todayStr = new Date().toDateString();
+		salesToday = receivedTxs
+			.filter(tx => new Date(tx.created_at || tx.date).toDateString() === todayStr)
+			.reduce((sum, tx) => {
+				const isCreate = tx.type === 'create_account';
+				const amountVal = parseFloat(isCreate ? tx.starting_balance : tx.amount || '0');
+				const code = isCreate ? 'XLM' : (tx.asset_code || 'XLM');
+				const rate = code === 'XLM' ? 0.12 : 1.0;
+				return sum + (amountVal * rate);
+			}, 0);
+
+		// Calcular cobros reales del mes
+		const currentMonth = new Date().getMonth();
+		const currentYear = new Date().getFullYear();
+		salesMonth = receivedTxs
+			.filter(tx => {
+				const txDate = new Date(tx.created_at || tx.date);
+				return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+			})
+			.reduce((sum, tx) => {
+				const isCreate = tx.type === 'create_account';
+				const amountVal = parseFloat(isCreate ? tx.starting_balance : tx.amount || '0');
+				const code = isCreate ? 'XLM' : (tx.asset_code || 'XLM');
+				const rate = code === 'XLM' ? 0.12 : 1.0;
+				return sum + (amountVal * rate);
+			}, 0);
 	}
 
 	let loadingActionId = '';
@@ -65,15 +95,48 @@
 		reloadData();
 	});
 
-	// Mock datos para el gráfico de volumen semanal
+	// Generar volumen de cobros semanal real
 	const chartDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-	const chartPoints = [24, 45, 15, 80, 52, 95, 120];
-	const maxPoint = Math.max(...chartPoints);
+	
+	function getWeeklyVolumes(txs: any[]) {
+		const volumes = [0, 0, 0, 0, 0, 0, 0];
+		const now = new Date();
+		const dayOfWeek = now.getDay();
+		const distanceToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+		const monday = new Date(now);
+		monday.setDate(now.getDate() - distanceToMonday);
+		monday.setHours(0, 0, 0, 0);
+
+		const received = txs.filter(tx => {
+			const isCreate = tx.type === 'create_account';
+			const sender = isCreate ? tx.funder : tx.from;
+			const receiver = isCreate ? tx.account : tx.to;
+			return receiver === $session.stellarAccount?.pubKey && sender !== $session.stellarAccount?.pubKey;
+		});
+
+		received.forEach(tx => {
+			const isCreate = tx.type === 'create_account';
+			const amountVal = parseFloat(isCreate ? tx.starting_balance : tx.amount || '0');
+			const code = isCreate ? 'XLM' : (tx.asset_code || 'XLM');
+			const rate = code === 'XLM' ? 0.12 : 1.0;
+			
+			const txDate = new Date(tx.created_at || tx.date);
+			if (txDate >= monday) {
+				const txDay = txDate.getDay();
+				const index = txDay === 0 ? 6 : txDay - 1;
+				volumes[index] += amountVal * rate;
+			}
+		});
+		return volumes;
+	}
+
+	$: chartPoints = getWeeklyVolumes($transactions);
+	$: maxPoint = Math.max(...chartPoints, 1);
 	const chartHeight = 120;
 	const chartWidth = 500;
 	
-	// Generar puntos SVG del gráfico
-	const svgPoints = chartPoints.map((val, i) => {
+	// Generar puntos SVG del gráfico reactivamente
+	$: svgPoints = chartPoints.map((val, i) => {
 		const x = (i * (chartWidth / (chartPoints.length - 1)));
 		const y = chartHeight - (val / maxPoint) * (chartHeight - 20) - 10;
 		return `${x},${y}`;

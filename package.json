@@ -35,6 +35,7 @@
     "@walletconnect/core": "^2.23.9",
     "@walletconnect/utils": "^2.23.9",
     "eventsource": "^2.0.2",
+    "firebase": "^12.15.0",
     "pnpm": "^10.34.1",
     "qrious": "^4.0.2"
   }
