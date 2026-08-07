@@ -1,6 +1,6 @@
 import { loginGoogle, loginDeveloper, logout as sessionLogout, session } from '../stores/session';
 import { addNotification } from '../stores/notifications';
-import { crearYFondearWalletTestnet, establishTrustline } from './stellar';
+import { crearYFondearWalletTestnet, establishTrustline, SUPPORTED_ASSETS } from './stellar';
 import type { GoogleUser, StellarAccount } from '../types';
 import { auth, db } from './firebase';
 import { GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -167,10 +167,12 @@ export async function authenticateWithGoogle(googleUser: GoogleUser) {
 
 			addNotification('trustline', 'Cuenta Registrada', 'Tus llaves de Stellar se generaron con éxito y se guardaron de forma segura.');
 			
-			// Habilitar automáticamente USDC y USDT en la testnet para que estén listas para usar
+			// Habilitar automáticamente USDC y USDT usando los issuers definidos en SUPPORTED_ASSETS (fuente única de verdad)
 			addNotification('security', 'Inicializando USDC/USDT', 'Estableciendo canales de confianza en Stellar Testnet...');
-			await establishTrustline(stellarAccount, 'USDC', 'GBDEVU65XS6TH7QCBBTY6YW7CTX7COIZM2ZW647SR27JCG6JEQH6Z6QI');
-			await establishTrustline(stellarAccount, 'USDT', 'GC56O2GBBY5O462QCQA6MQBLJQLMIZDJWHL6L657WOOW3W66QTM4A244');
+			const usdcIssuer = SUPPORTED_ASSETS.find(a => a.code === 'USDC')?.issuer;
+			const usdtIssuer = SUPPORTED_ASSETS.find(a => a.code === 'USDT')?.issuer;
+			if (usdcIssuer) await establishTrustline(stellarAccount, 'USDC', usdcIssuer);
+			if (usdtIssuer) await establishTrustline(stellarAccount, 'USDT', usdtIssuer);
 		}
 
 		loginGoogle(googleUser, stellarAccount);
