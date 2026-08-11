@@ -3,11 +3,12 @@ import { addNotification } from '../stores/notifications';
 import { crearYFondearWalletTestnet, establishTrustline, SUPPORTED_ASSETS } from './stellar';
 import type { GoogleUser, StellarAccount } from '../types';
 import { auth, db } from './firebase';
+import { getRequiredEnv } from './env';
 import { GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Keypair } from '@stellar/stellar-sdk';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '912634358485-mockclientid12345.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = getRequiredEnv('VITE_GOOGLE_CLIENT_ID');
 
 // Escuchar cambios de estado de autenticación en Firebase
 onAuthStateChanged(auth, async (firebaseUser) => {
