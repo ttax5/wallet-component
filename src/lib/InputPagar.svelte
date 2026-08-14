@@ -8,40 +8,35 @@
 
 	let amount: number;
 	let recipient: string;
-	let monedaSeleccionada: string;
-
-	let countries = [
-		{ value: 'us', name: 'United States' },
-		{ value: 'ca', name: 'Canada' },
-		{ value: 'fr', name: 'France' },
-	];
+	let monedaSeleccionada: AssetCodes = AssetCodes.XLM;
 
 	let monedasDisponibles = [
 		{
 			value: AssetCodes.XLM,
-			name: 'Stellar Lumens',
+			name: 'Stellar Lumens (XLM)',
 		},
 		{
 			value: AssetCodes.USDC,
-			name: 'USD Coin',
+			name: 'USD Coin (USDC)',
 		},
 	];
 
 	const dispatcher = createEventDispatcher();
 
 	async function submitForm() {
-		// Aquí puedes agregar la lógica para manejar el envío del formulario
-		console.log(`Amount: ${amount}, Recipient: ${recipient}`);
-		cargando=true
-		const seEnvio = await createPayment(amount, stellarAccount, recipient);
-		cargando=false
+		console.log(`Amount: ${amount}, Recipient: ${recipient}, Asset: ${monedaSeleccionada}`);
+		cargando = true;
+		const assetToSend = (monedaSeleccionada || AssetCodes.XLM) as AssetCodes;
+		await createPayment(amount, stellarAccount, recipient, assetToSend);
+		cargando = false;
 		const paymentDone: PaymentDone = {
 			amount,
 			destination: recipient,
+			assetCode: assetToSend,
 		};
 		dispatcher('paymentDone', paymentDone);
 	}
-	let cargando=false
+	let cargando = false;
 </script>
 
 <div

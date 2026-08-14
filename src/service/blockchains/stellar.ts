@@ -3,6 +3,28 @@ import { stellarNetwork } from '../../stellar_account';
 import { AssetCodes } from '../../globals';
 import { Asset, Networks, Operation } from '@stellar/stellar-sdk';
 
+/**
+ * Emisores de activos en la Testnet de Stellar.
+ * USDC en Testnet está emitido por Centre (Circle).
+ */
+const ASSET_ISSUERS: Partial<Record<AssetCodes, string>> = {
+	[AssetCodes.USDC]: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+};
+
+/**
+ * Resuelve el objeto Asset de Stellar según el código de activo.
+ */
+function resolveAsset(assetCode: AssetCodes): Asset {
+	if (assetCode === AssetCodes.XLM) {
+		return Asset.native();
+	}
+	const issuer = ASSET_ISSUERS[assetCode];
+	if (!issuer) {
+		throw new Error(`Activo no soportado: ${assetCode}. Falta el emisor (issuer).`);
+	}
+	return new Asset(assetCode, issuer);
+}
+
 const server = new StellarSdk.Horizon.Server(stellarNetwork);
 
 /**
@@ -37,20 +59,17 @@ export async function getBalance(
 	const accountId = addr;
 
 	// Create an API call to query payments involving the account.
-
 	const accountResult = await server.accounts().accountId(accountId).call();
 
-	const balanceNativo = accountResult.balances.filter((balance) => {
-//		console.log('Type:', balance.asset_type, ', Balance:', balance.balance)
-
-		return balance.asset_type == 'native';
-		//return balance.asset_code === assetCode;
-	});
-	console.info('los balances son', accountResult.balances);
-
-	console.info('el balance nativo es', balanceNativo);
-
-	return parseFloat(accountResult.balances[0].balance);
+	if (assetCode === AssetCodes.XLM) {
+		const balanceNativo = accountResult.balances.find((balance) => balance.asset_type === 'native');
+		return balanceNativo ? parseFloat(balanceNativo.balance) : 0;
+	} else {
+		const customBalance = accountResult.balances.find(
+			(balance: any) => balance.asset_code === assetCode,
+		);
+		return customBalance ? parseFloat(customBalance.balance) : 0;
+	}
 }
 
 /**
@@ -79,11 +98,12 @@ export async function createPayment(
 			networkPassphrase: network,
 		});
 
+		const asset = resolveAsset(assetCode);
 		const operation1 = transaction.addOperation(
 			Operation.payment({
 				destination: beneficiary,
 				amount: String(monto),
-				asset: Asset.native(),
+				asset,
 			}),
 		);
 		const operation2 = operation1.setTimeout(100);
@@ -95,9 +115,10 @@ export async function createPayment(
 		const pruebaTerminada = await server.submitTransaction(pruebaArmada);
 		console.log(pruebaTerminada);
 		paymentRealized="hecho"
-		paymentDone ={
-			amount:monto,
+		paymentDone = {
+			amount: monto,
 			destination: beneficiary,
+			assetCode: assetCode,
 		};
 	} catch (err) {
 		console.log(err);
@@ -106,10 +127,8 @@ export async function createPayment(
 }
 
 // TODO agregar parametro a la funcion con la stellar account asi no se hardcodea en el codigo la pubkey
-export async function paymentsdones() {
-	const payments = await server.payments().forAccount("GDNHIOSGUNBCZ7PNU7TLE4MPMUUHNDECZ7534MNI2BHRGLDIXDQTL3PG").call();
-
+export async function paymentsdones(accountId = "GDNHIOSGUNBCZ7PNU7TLE4MPMUUHNDECZ7534MNI2BHRGLDIXDQTL3PG") {
+	const payments = await server.payments().forAccount(accountId).call();
 	console.log(payments);
+	return payments;
 }
-
-paymentsdones();

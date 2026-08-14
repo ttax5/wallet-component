@@ -6,4 +6,5 @@ interface User {
 interface PaymentDone {
 	amount: number;
 	destination: string;
+	assetCode?: string;
 }

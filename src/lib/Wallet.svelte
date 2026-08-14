@@ -106,7 +106,7 @@
 
 <Modal bind:open={openModalWalletSaldoHistory} autoclose>
 	<div class="m-auto flex justify-center">
-		<WalletSaldoHistory />
+		<WalletSaldoHistory {listTransactions} />
 	</div>
 </Modal>
 
@@ -213,7 +213,7 @@
 			>
 				<strong class="font-bold">Pago realizado!</strong>
 				<span class="block sm:inline"
-					>Se envió {paymentDone.amount} a {paymentDone.destination}</span
+					>Se envió {paymentDone.amount} {paymentDone.assetCode || 'XLM'} a {paymentDone.destination}</span
 				>
 			</div>
 		{/if}
@@ -240,7 +240,7 @@
 			>
 				<strong class="font-bold">Pago fallido!</strong>
 				<span class="block sm:inline"
-					>No se pudo enviar {paymentDone.amount} a {paymentDone.destination}</span
+					>No se pudo enviar {paymentDone.amount} {paymentDone.assetCode || 'XLM'} a {paymentDone.destination}</span
 				>
 			</div>
 		{/if}
