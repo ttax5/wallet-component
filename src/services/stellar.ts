@@ -5,7 +5,7 @@ import type { AssetBalance, StellarAccount, PaymentDone } from '../types';
 import { addNotification } from '../stores/notifications';
 import { balances as balancesStore, loadingBalances, transactions as transactionsStore, loadingTransactions } from '../stores/wallet';
 import { db, auth } from './firebase';
-import { doc, setDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { saveTransactionRecord, fetchUserTransactions } from './firestore';
 
 const server = new StellarSdk.Horizon.Server(stellarNetwork);
 const network = Networks.TESTNET;
@@ -43,30 +43,23 @@ export const SUPPORTED_ASSETS = [
 
 // Helper para sincronizar transacciones en Firestore
 export async function syncTransactionToFirestore(uid: string, record: any) {
-	try {
-		const txHash = record.transaction_hash || record.hash;
-		if (!txHash) return;
-		const txRef = doc(db, 'users', uid, 'transactions', txHash);
-		
-		const dataToSave = {
-			id: record.id || txHash,
-			type: record.type || 'payment',
-			created_at: record.created_at || new Date().toISOString(),
-			transaction_hash: txHash,
-			from: record.from || '',
-			to: record.to || '',
-			amount: record.amount || '0',
-			asset_code: record.asset_code || 'XLM',
-			asset_issuer: record.asset_issuer || '',
-			funder: record.funder || '',
-			account: record.account || '',
-			starting_balance: record.starting_balance || '0'
-		};
-		
-		await setDoc(txRef, dataToSave, { merge: true });
-	} catch (e) {
-		console.error("Error al guardar transacción en Firestore:", e);
-	}
+	const txHash = record.transaction_hash || record.hash;
+	if (!txHash) return;
+	
+	await saveTransactionRecord(uid, {
+		id: record.id || txHash,
+		type: record.type || 'payment',
+		created_at: record.created_at || new Date().toISOString(),
+		transaction_hash: txHash,
+		from: record.from || '',
+		to: record.to || '',
+		amount: record.amount || '0',
+		asset_code: record.asset_code || 'XLM',
+		asset_issuer: record.asset_issuer || '',
+		funder: record.funder || '',
+		account: record.account || '',
+		starting_balance: record.starting_balance || ''
+	});
 }
 
 // Faucet automático para activos secundarios
@@ -205,16 +198,9 @@ export async function loadTransactionsHistory(address: string) {
 				await syncTransactionToFirestore(firebaseUser.uid, record);
 			}
 
-			// 3. Consultar y ordenar desde Firestore
-			const snap = await getDocs(
-				query(
-					collection(db, 'users', firebaseUser.uid, 'transactions'),
-					orderBy('created_at', 'desc'),
-					limit(15)
-				)
-			);
-			const localRecords = snap.docs.map(doc => doc.data());
-			transactionsStore.set(localRecords);
+			// 3. Consultar y ordenar desde Firestore usando el servicio centralizado
+			const localRecords = await fetchUserTransactions(firebaseUser.uid, 15);
+			transactionsStore.set(localRecords.length > 0 ? localRecords : response.records);
 		} else {
 			transactionsStore.set(response.records);
 		}

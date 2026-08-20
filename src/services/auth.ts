@@ -7,24 +7,23 @@ import { GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged }
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Keypair } from '@stellar/stellar-sdk';
 
+import { fetchUserProfile, saveUserProfile } from './firestore';
+
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '912634358485-mockclientid12345.apps.googleusercontent.com';
 
 // Escuchar cambios de estado de autenticación en Firebase
 onAuthStateChanged(auth, async (firebaseUser) => {
 	if (firebaseUser) {
 		try {
-			const userDocRef = doc(db, 'users', firebaseUser.uid);
-			const docSnap = await getDoc(userDocRef);
-			if (docSnap.exists()) {
-				const data = docSnap.data();
-				const stellarAccount: StellarAccount = data.stellarAccount;
+			const profile = await fetchUserProfile(firebaseUser.uid);
+			if (profile && profile.stellarAccount) {
 				const googleUser: GoogleUser = {
-					email: firebaseUser.email || '',
-					name: firebaseUser.displayName || '',
-					picture: firebaseUser.photoURL || '',
+					email: firebaseUser.email || profile.email || '',
+					name: firebaseUser.displayName || profile.name || '',
+					picture: firebaseUser.photoURL || profile.photoURL || '',
 					id: firebaseUser.uid
 				};
-				loginGoogle(googleUser, stellarAccount);
+				loginGoogle(googleUser, profile.stellarAccount);
 			}
 		} catch (error) {
 			console.error("Error al restaurar sesión de Firebase:", error);
@@ -136,18 +135,24 @@ export async function authenticateWithGoogle(googleUser: GoogleUser) {
 		const userCredential = await signInWithCredential(auth, credential);
 		const firebaseUser = userCredential.user;
 
-		const userDocRef = doc(db, 'users', firebaseUser.uid);
-		const docSnap = await getDoc(userDocRef);
+		let profile;
+		try {
+			profile = await fetchUserProfile(firebaseUser.uid);
+		} catch (firestoreErr: any) {
+			console.error("Firestore Error:", firestoreErr);
+			throw new Error("No se pudo conectar a Cloud Firestore. Debes activar la base de datos Firestore en Firebase Console.");
+		}
 
 		let stellarAccount: StellarAccount;
+		let isNewUser = false;
 
-		if (docSnap.exists()) {
+		if (profile && profile.stellarAccount) {
 			// Usuario ya registrado, recuperar sus llaves Stellar
-			const data = docSnap.data();
-			stellarAccount = data.stellarAccount;
-			addNotification('security', 'Cuenta Recuperada', 'Wallet Stellar cargada desde Firebase.');
+			stellarAccount = profile.stellarAccount;
+			addNotification('security', 'Cuenta Recuperada', 'Wallet Stellar cargada desde Cloud Firestore.');
 		} else {
 			// Usuario nuevo, generar llaves Stellar reales
+			isNewUser = true;
 			addNotification('security', 'Creando Cuenta Web3', 'Generando llaves Stellar no custodias para nuevo usuario...');
 			const account = await crearYFondearWalletTestnet();
 			stellarAccount = {
@@ -156,7 +161,7 @@ export async function authenticateWithGoogle(googleUser: GoogleUser) {
 			};
 
 			// Guardar el nuevo usuario en Firestore
-			await setDoc(userDocRef, {
+			await saveUserProfile({
 				uid: firebaseUser.uid,
 				name: firebaseUser.displayName || googleUser.name,
 				email: firebaseUser.email || googleUser.email,
@@ -165,21 +170,29 @@ export async function authenticateWithGoogle(googleUser: GoogleUser) {
 				stellarAccount: stellarAccount
 			});
 
-			addNotification('trustline', 'Cuenta Registrada', 'Tus llaves de Stellar se generaron con éxito y se guardaron de forma segura.');
-			
-			// Habilitar automáticamente USDC y USDT usando los issuers definidos en SUPPORTED_ASSETS (fuente única de verdad)
-			addNotification('security', 'Inicializando USDC/USDT', 'Estableciendo canales de confianza en Stellar Testnet...');
-			const usdcIssuer = SUPPORTED_ASSETS.find(a => a.code === 'USDC')?.issuer;
-			const usdtIssuer = SUPPORTED_ASSETS.find(a => a.code === 'USDT')?.issuer;
-			if (usdcIssuer) await establishTrustline(stellarAccount, 'USDC', usdcIssuer);
-			if (usdtIssuer) await establishTrustline(stellarAccount, 'USDT', usdtIssuer);
+			addNotification('trustline', 'Cuenta Registrada en Cloud', 'Tus llaves de Stellar se guardaron exitosamente en Firestore.');
 		}
 
+		// Loguear al usuario
 		loginGoogle(googleUser, stellarAccount);
 		addNotification('security', 'Sesión Iniciada', `Bienvenido al panel, ${firebaseUser.displayName || googleUser.name}`);
-	} catch (e) {
+
+		// Si era nuevo usuario, inicializar USDC/USDT en segundo plano
+		if (isNewUser) {
+			(async () => {
+				try {
+					const usdcIssuer = SUPPORTED_ASSETS.find(a => a.code === 'USDC')?.issuer;
+					const usdtIssuer = SUPPORTED_ASSETS.find(a => a.code === 'USDT')?.issuer;
+					if (usdcIssuer) await establishTrustline(stellarAccount, 'USDC', usdcIssuer);
+					if (usdtIssuer) await establishTrustline(stellarAccount, 'USDT', usdtIssuer);
+				} catch (err) {
+					console.error("Error en trustlines secundarias en segundo plano:", err);
+				}
+			})();
+		}
+	} catch (e: any) {
 		console.error('Error durante autenticación con Google/Firebase:', e);
-		addNotification('error', 'Error al Iniciar Sesión', 'No se pudo completar el inicio de sesión con Firebase.');
+		addNotification('error', 'Error al Iniciar Sesión', e?.message || 'No se pudo completar el inicio de sesión con Firebase.');
 	}
 }
 

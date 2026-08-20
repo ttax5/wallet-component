@@ -23,16 +23,16 @@ dist-ssr
 *.sln
 *.sw?
 
-# ============================================================
-# ARCHIVOS SENSIBLES - Variables de entorno
-# ============================================================
 .env
 .env.*
 !.env.example
 
-# ============================================================
-# ARCHIVOS SENSIBLES - Firebase / Google Cloud
-# ============================================================
+# Temporary build & timestamp files
+*.timestamp-*.mjs
+vite.config.ts.timestamp*
+
+
+
 .firebaserc
 firebase.json
 .firebase/
@@ -42,7 +42,6 @@ ui-debug.log
 database-debug.log
 pubsub-debug.log
 
-# Service accounts y credenciales de GCP / Firebase
 service-account*.json
 *-service-account.json
 *-credentials.json
@@ -52,9 +51,6 @@ gcp-credentials.json
 firebase-adminsdk*.json
 *firebase*adminsdk*.json
 
-# ============================================================
-# ARCHIVOS SENSIBLES - Claves privadas y certificados
-# ============================================================
 *.pem
 *.key
 *.p12
@@ -66,9 +62,6 @@ id_rsa
 id_ed25519
 *.keystore
 
-# ============================================================
-# ARCHIVOS SENSIBLES - Configuración local / secretos
-# ============================================================
 secrets.json
 secrets.yaml
 secrets.yml
