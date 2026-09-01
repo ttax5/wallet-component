@@ -92,7 +92,7 @@
 	}
 </script>
 
-<div class="max-w-xl m-auto bg-slate-900/40 border border-slate-800 backdrop-blur-md p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-fadeIn">
+<div class="form-card max-w-xl m-auto border p-8 relative overflow-hidden animate-fadeIn">
 	<div class="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
 	{#if openScanner}
@@ -112,12 +112,12 @@
 		<div>
 			<div class="flex items-center justify-between mb-6">
 				<div>
-					<h2 class="text-2xl font-black text-slate-100 tracking-tight">Enviar Pago</h2>
-					<p class="text-xs text-slate-400 mt-1">Transfiere fondos de tu cuenta a cualquier dirección Stellar.</p>
+					<h2 class="text-2xl font-black tracking-tight">Enviar pago</h2>
+					<p class="text-xs muted mt-1">Transfiere fondos de tu cuenta a cualquier dirección Stellar.</p>
 				</div>
 				<button
 					on:click={() => openScanner = true}
-					class="px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+					class="secondary-button px-3 py-2 text-xs"
 				>
 					<!-- Scan Icon -->
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +171,7 @@
 				</div>
 
 				<!-- Visualización de Saldo Disponible -->
-				<div class="p-3 bg-slate-950/40 border border-slate-850 rounded-xl flex items-center justify-between text-xs font-semibold">
+				<div class="info-row p-3 flex items-center justify-between text-xs font-semibold">
 					<span class="text-slate-500">Saldo Disponible:</span>
 					<span class="text-indigo-400 font-mono">{currentAssetBalance.toFixed(4)} {selectedAssetCode}</span>
 				</div>
@@ -192,7 +192,7 @@
 				<button
 					on:click={executeTransfer}
 					disabled={!recipient || !amount || amount <= 0}
-					class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-4"
+					class="primary-button w-full py-3.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed mt-4"
 				>
 					Confirmar y Enviar Fondos
 				</button>
@@ -204,8 +204,8 @@
 			<!-- Spinner Animado -->
 			<div class="w-14 h-14 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-6"></div>
 			
-			<h3 class="text-lg font-bold text-slate-100 tracking-tight">Procesando Transacción</h3>
-			<p class="text-xs text-slate-400 max-w-[280px] mt-1.5">
+			<h3 class="text-lg font-bold tracking-tight">Procesando transacción</h3>
+			<p class="text-xs muted max-w-[280px] mt-1.5">
 				{#if txState === 'preparing'}
 					Cargando datos de la red Stellar y preparando transacción...
 				{:else}
@@ -222,11 +222,11 @@
 				</svg>
 			</div>
 
-			<h2 class="text-2xl font-black text-slate-100 tracking-tight">¡Envío Exitoso!</h2>
-			<p class="text-xs text-slate-400 mt-1.5">Los fondos se han transferido a la cuenta de destino.</p>
+			<h2 class="text-2xl font-black tracking-tight">Envío exitoso</h2>
+			<p class="text-xs muted mt-1.5">Los fondos se han transferido a la cuenta de destino.</p>
 
 			{#if successHash}
-				<div class="w-full bg-slate-950/40 border border-slate-850 rounded-2xl p-4 mt-6 space-y-2 text-left text-xs font-mono">
+				<div class="subtle-panel w-full p-4 mt-6 space-y-2 text-left text-xs font-mono">
 					<div class="flex justify-between">
 						<span class="text-slate-500 font-semibold font-sans">Tx Hash:</span>
 						<span class="text-slate-300 text-[10px]" title={successHash}>{formatKey(successHash)}</span>
@@ -250,7 +250,7 @@
 
 			<button
 				on:click={resetState}
-				class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md mt-6"
+				class="primary-button w-full py-3.5 text-sm mt-6"
 			>
 				Hacer Otro Pago
 			</button>
@@ -264,8 +264,8 @@
 				</svg>
 			</div>
 
-			<h2 class="text-2xl font-black text-slate-100 tracking-tight">Transacción Fallida</h2>
-			<p class="text-xs text-slate-400 mt-1.5">No se pudo concretar el envío a la red Stellar.</p>
+			<h2 class="text-2xl font-black tracking-tight">Transacción fallida</h2>
+			<p class="text-xs muted mt-1.5">No se pudo concretar el envío a la red Stellar.</p>
 
 			<div class="w-full p-4 bg-red-950/20 border border-red-500/20 rounded-2xl mt-6 text-xs text-red-300 font-semibold leading-relaxed text-left">
 				{errorMessage}
@@ -274,13 +274,13 @@
 			<div class="w-full flex gap-3 mt-6">
 				<button 
 					on:click={() => txState = 'idle'}
-					class="flex-1 py-3 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+					class="secondary-button flex-1 py-3 text-xs"
 				>
 					Modificar Datos
 				</button>
 				<button 
 					on:click={resetState}
-					class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-colors"
+					class="primary-button flex-1 py-3 text-xs"
 				>
 					Volver a Empezar
 				</button>

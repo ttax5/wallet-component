@@ -7,3 +7,13 @@ export function getRequiredEnv(name: string): string {
 
 	return value;
 }
+
+export function getOptionalEnv(name: string): string | undefined {
+	const value = import.meta.env[name];
+
+	if (typeof value !== 'string' || value.trim() === '') {
+		return undefined;
+	}
+
+	return value;
+}

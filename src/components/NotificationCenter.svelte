@@ -59,12 +59,26 @@
 		}
 		return '';
 	}
+
+	function closeOnKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			isOpen = false;
+		}
+	}
+
+	function markAsReadOnKeydown(event: KeyboardEvent, notificationId: string) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			markAsRead(notificationId);
+		}
+	}
 </script>
 
 <!-- TOAST OVERLAY (Esquina Superior Derecha) -->
 {#if $activeToast}
 	<div 
-		class="fixed top-5 right-5 z-50 flex items-start gap-3.5 p-4 rounded-2xl border bg-slate-900/90 shadow-2xl backdrop-blur-md max-w-sm w-full animate-toastSlideIn
+		class="toast-panel fixed top-5 right-5 z-50 flex items-start gap-3.5 p-4 rounded-2xl border max-w-sm w-full animate-toastSlideIn
 		{getNotificationColors($activeToast.type)}"
 	>
 		<!-- Icono -->
@@ -98,17 +112,21 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div 
 		on:click={() => isOpen = false} 
+		on:keydown={closeOnKeydown}
 		class="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 transition-opacity duration-300"
+		role="button"
+		tabindex="0"
+		aria-label="Cerrar notificaciones"
 	></div>
 
 	<!-- Drawer Container -->
 	<div 
-		class="fixed top-0 right-0 h-full w-full max-w-md bg-slate-900 border-l border-slate-800 z-50 flex flex-col shadow-2xl animate-drawerSlideIn"
+		class="drawer-panel fixed top-0 right-0 h-full w-full max-w-md border-l z-50 flex flex-col animate-drawerSlideIn"
 	>
 		<!-- Cabecera -->
 		<div class="p-5 border-b border-slate-800/80 flex items-center justify-between">
 			<div class="flex items-center gap-2">
-				<h3 class="text-lg font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+				<h3 class="text-lg font-bold">
 					Notificaciones
 				</h3>
 				{#if $notifications.filter(n => !n.read).length > 0}
@@ -123,20 +141,20 @@
 				{#if $notifications.length > 0}
 					<button 
 						on:click={markAllAsRead} 
-						class="text-xs text-slate-400 hover:text-indigo-400 font-semibold px-2 py-1.5 rounded-lg hover:bg-slate-850 transition-colors"
+						class="ghost-button text-xs px-2 py-1.5"
 					>
 						Marcar leídas
 					</button>
 					<button 
 						on:click={clearAll} 
-						class="text-xs text-slate-400 hover:text-red-400 font-semibold px-2 py-1.5 rounded-lg hover:bg-slate-850 transition-colors"
+						class="danger-button text-xs px-2 py-1.5"
 					>
 						Limpiar
 					</button>
 				{/if}
 				<button 
 					on:click={() => isOpen = false} 
-					class="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-850 rounded-lg transition-colors ml-1"
+					class="icon-button ml-1"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -146,15 +164,15 @@
 		</div>
 
 		<!-- Filtros -->
-		<div class="px-5 py-3 border-b border-slate-800/50 bg-slate-950/20 flex gap-2">
+		<div class="px-5 py-3 border-b border-slate-800/50 flex gap-2">
 			<button
-				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'all' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-300'}"
+				class="tab-button px-3 py-1.5 text-xs {filterType === 'all' ? 'active' : ''}"
 				on:click={() => filterType = 'all'}
 			>
 				Todas
 			</button>
 			<button
-				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'unread' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-300'}"
+				class="tab-button px-3 py-1.5 text-xs {filterType === 'unread' ? 'active' : ''}"
 				on:click={() => filterType = 'unread'}
 			>
 				No Leídas
@@ -166,10 +184,13 @@
 			{#if filteredNotifications.length > 0}
 				{#each filteredNotifications as notification (notification.id)}
 					<!-- svelte-ignore a11y-click-events-have-key-events -->
-					<div 
-						class="flex gap-3.5 p-4 rounded-xl border bg-slate-850/40 transition-all duration-200 relative group 
+					<div
+						class="history-row flex gap-3.5 p-4 rounded-xl border transition-all duration-200 relative group
 						{notification.read ? 'border-slate-800/60 opacity-70' : 'border-slate-700/60 shadow-lg shadow-indigo-600/[0.02]'}"
 						on:click={() => markAsRead(notification.id)}
+						on:keydown={(event) => markAsReadOnKeydown(event, notification.id)}
+						role="button"
+						tabindex="0"
 					>
 						<!-- Punto azul de no leído -->
 						{#if !notification.read}

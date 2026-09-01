@@ -5,6 +5,7 @@ import type { AssetBalance, StellarAccount, PaymentDone } from '../types';
 import { addNotification } from '../stores/notifications';
 import { balances as balancesStore, loadingBalances, transactions as transactionsStore, loadingTransactions } from '../stores/wallet';
 import { db, auth } from './firebase';
+import { getOptionalEnv } from './env';
 import { doc, setDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 const server = new StellarSdk.Horizon.Server(stellarNetwork);
@@ -12,9 +13,8 @@ const network = Networks.TESTNET;
 
 export let horizonEventSource: EventSource | null = null;
 
-// Faucet / Emisor central de USDC y USDT en Testnet para pruebas
-const FAUCET_PUB = 'GAZTQJBGXOXT5C34JH3RDHYLMFAANXMQLBKJKOEMVBBEAVOB3HHSSAUD';
-const FAUCET_PRIV = 'SBYVPORGBKBYGLGHPDZ7BIFZR5LL666I25YXXLS3GP3ZEU4BOCONXYY2';
+const USDC_ISSUER = getOptionalEnv('VITE_STELLAR_USDC_ISSUER');
+const USDT_ISSUER = getOptionalEnv('VITE_STELLAR_USDT_ISSUER');
 
 // Lista de activos admitidos por defecto en nuestra interfaz
 export const SUPPORTED_ASSETS = [
@@ -29,14 +29,14 @@ export const SUPPORTED_ASSETS = [
 		code: 'USDC',
 		name: 'USD Coin',
 		logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-		issuer: FAUCET_PUB,
+		issuer: USDC_ISSUER,
 		type: 'credit_alphanum4'
 	},
 	{
 		code: 'USDT',
 		name: 'Tether USD',
 		logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-		issuer: FAUCET_PUB,
+		issuer: USDT_ISSUER,
 		type: 'credit_alphanum4'
 	}
 ];
@@ -69,43 +69,6 @@ export async function syncTransactionToFirestore(uid: string, record: any) {
 	}
 }
 
-// Faucet automático para activos secundarios
-export async function fundWithFaucet(userPubKey: string, assetCode: string, assetIssuer: string) {
-	try {
-		console.log(`Fondeando 1000 ${assetCode} al usuario desde Faucet...`);
-		const faucetKeys = StellarSdk.Keypair.fromSecret(FAUCET_PRIV);
-		const faucetAccount = await server.loadAccount(FAUCET_PUB);
-
-		const asset = new Asset(assetCode, assetIssuer);
-		const transaction = new StellarSdk.TransactionBuilder(faucetAccount, {
-			fee: StellarSdk.BASE_FEE,
-			networkPassphrase: network,
-		})
-		.addOperation(
-			Operation.payment({
-				destination: userPubKey,
-				asset: asset,
-				amount: '1000.0000000'
-			})
-		)
-		.setTimeout(180)
-		.build();
-
-		transaction.sign(faucetKeys);
-		await server.submitTransaction(transaction);
-		
-		addNotification(
-			'payment_received',
-			'Saldo Inicial Recibido',
-			`¡El Faucet te ha enviado 1000 ${assetCode} de prueba!`,
-			1000,
-			assetCode
-		);
-	} catch (err) {
-		console.error(`Error al fondear ${assetCode} con Faucet:`, err);
-	}
-}
-
 // Cargar saldos de la cuenta e integrar metadatos y conversión a USD
 export async function loadBalances(address: string) {
 	if (!address || address.length !== 56) {
@@ -122,6 +85,7 @@ export async function loadBalances(address: string) {
 				if (supported.type === 'native') {
 					return hb.asset_type === 'native';
 				} else {
+					if (!supported.issuer) return false;
 					const b = hb as { asset_code?: string; asset_issuer?: string };
 					return b.asset_code === supported.code && b.asset_issuer === supported.issuer;
 				}
@@ -251,15 +215,7 @@ export async function establishTrustline(payer: StellarAccount, assetCode: strin
 		
 		addNotification('trustline', 'Activo Habilitado', `Has establecido la confianza (trustline) para ${assetCode}.`);
 		
-		// Si es USDC o USDT y usa nuestro Faucet, enviar saldo inicial automáticamente
-		if (assetIssuer === FAUCET_PUB) {
-			setTimeout(async () => {
-				await fundWithFaucet(payer.pubKey, assetCode, assetIssuer);
-				await loadBalances(payer.pubKey);
-			}, 2000);
-		} else {
-			await loadBalances(payer.pubKey);
-		}
+		await loadBalances(payer.pubKey);
 		
 		return true;
 	} catch (e) {

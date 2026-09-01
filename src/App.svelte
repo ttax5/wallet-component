@@ -11,6 +11,7 @@
 
 	import { session } from './stores/session';
 	import { unreadCount } from './stores/notifications';
+	import { theme, toggleTheme } from './stores/theme';
 	import { subscribeToPayments, unsubscribeFromPayments, loadBalances, loadTransactionsHistory } from './services/stellar';
 	import type { ViewType } from './types';
 	import { fade } from 'svelte/transition';
@@ -54,12 +55,12 @@
 
 {#if !$session.isAuthenticated}
 	<!-- Pantalla de Login -->
-	<div class="min-h-screen flex items-center justify-center relative z-10">
+	<div class="min-h-screen flex items-center justify-center relative z-10 app-shell">
 		<AuthPage />
 	</div>
 {:else}
 	<!-- Dashboard del Comercio Completo -->
-	<div class="flex min-h-screen text-slate-100 relative z-10">
+	<div class="flex min-h-screen relative z-10 app-shell">
 		<!-- Sidebar Lateral -->
 		<Sidebar bind:activeTab bind:mobileOpen />
 
@@ -75,15 +76,15 @@
 		{/if}
 
 		<!-- Contenido Principal -->
-		<div class="flex-1 flex flex-col min-w-0 bg-slate-950/20">
+		<div class="flex-1 flex flex-col min-w-0 app-main">
 			<!-- Header Superior (Top Bar) -->
-			<header class="h-16 border-b border-slate-850 bg-slate-900/60 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between px-6">
+			<header class="topbar h-16 border-b sticky top-0 z-20 flex items-center justify-between px-4 md:px-6">
 				<!-- Ruta / Título -->
 				<div class="flex items-center gap-2 text-xs font-semibold text-slate-400">
 					<!-- Botón Hamburguesa Móvil -->
 					<button
 						on:click={() => mobileOpen = true}
-						class="p-2 -ml-2 mr-1 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-150 transition-all md:hidden flex items-center justify-center"
+						class="icon-button -ml-2 mr-1 md:hidden"
 						aria-label="Abrir menú"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,31 +92,50 @@
 						</svg>
 					</button>
 
-					<span>Comercio</span>
+					<span class="hidden sm:inline">Comercio</span>
 					<span>/</span>
-					<span class="text-indigo-400 font-bold">{getTitle(activeTab)}</span>
+					<span class="font-bold secondary-text">{getTitle(activeTab)}</span>
 				</div>
 
 				<!-- Acciones del Topbar -->
 				<div class="flex items-center gap-4">
+					<button
+						on:click={toggleTheme}
+						class="icon-button theme-toggle text-xs"
+						aria-label={$theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+						title={$theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+					>
+						{#if $theme === 'dark'}
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0l-1.414-1.414M7.05 7.05L5.636 5.636M12 8a4 4 0 100 8 4 4 0 000-8z"></path>
+							</svg>
+							Claro
+						{:else}
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a8.973 8.973 0 008.354-5.646z"></path>
+							</svg>
+							Oscuro
+						{/if}
+					</button>
+
 					<!-- Campana de Notificaciones con Badge -->
 					<button
 						on:click={() => notificationCenterOpen = !notificationCenterOpen}
-						class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-150 relative transition-all"
+						class="icon-button relative"
 						aria-label="Abrir centro de notificaciones"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
 						</svg>
 						{#if $unreadCount > 0}
-							<span class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white rounded-full text-[9px] font-black flex items-center justify-center border border-slate-900 animate-bounce">
+							<span class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white rounded-full text-[9px] font-black flex items-center justify-center border border-slate-900">
 								{$unreadCount}
 							</span>
 						{/if}
 					</button>
 
 					<!-- Separador -->
-					<div class="h-6 w-px bg-slate-850"></div>
+					<div class="h-6 w-px border-l border-slate-850"></div>
 
 					<!-- Menú Usuario -->
 					<div class="flex items-center gap-2.5">
@@ -126,11 +146,11 @@
 								class="w-8 h-8 rounded-full ring-2 ring-indigo-500/20 object-cover"
 							/>
 						{:else}
-							<div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300 text-xs">
+							<div class="w-8 h-8 rounded-full subtle-panel flex items-center justify-center font-bold text-xs">
 								CO
 							</div>
 						{/if}
-						<span class="text-xs font-bold text-slate-300 hidden sm:inline">
+						<span class="text-xs font-bold hidden sm:inline">
 							{$session.googleUser?.name || 'Comercio Local'}
 						</span>
 					</div>
@@ -138,7 +158,7 @@
 			</header>
 
 			<!-- Contenedor de Vistas Intercambiables -->
-			<main class="flex-1 p-6 md:p-8 max-w-6xl w-full m-auto">
+			<main class="flex-1 p-4 md:p-8 max-w-6xl w-full mx-auto">
 				{#if activeTab === 'dashboard'}
 					<Dashboard bind:activeTab />
 				{:else if activeTab === 'billing'}

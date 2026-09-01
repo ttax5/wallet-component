@@ -170,6 +170,13 @@
 		}
 	}
 
+	function handleFileDropKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			fileInput.click();
+		}
+	}
+
 	// Simulación manual
 	function submitSimulation() {
 		if (simQrValue && simQrValue.trim() !== '') {
@@ -221,15 +228,15 @@
 	}
 </script>
 
-<div class="max-w-md m-auto bg-slate-900/40 border border-slate-800 backdrop-blur-md p-6 rounded-3xl shadow-2xl relative overflow-hidden animate-fadeIn">
-	<h3 class="text-lg font-black text-slate-100 mb-2">Escáner de Pagos QR</h3>
-	<p class="text-xs text-slate-400 mb-6">Escanea un código de cobro mediante cámara, subiendo una imagen o simulando datos.</p>
+<div class="form-card max-w-md m-auto border p-6 relative overflow-hidden animate-fadeIn">
+	<h3 class="text-lg font-black mb-2">Escáner de pagos QR</h3>
+	<p class="text-xs muted mb-6">Escanea un código de cobro mediante cámara, subiendo una imagen o simulando datos.</p>
 
 	{#if scannerState === 'idle'}
 		<div class="space-y-3.5">
 			<button 
 				on:click={startCamera} 
-				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group"
+				class="secondary-button w-full justify-start gap-3 p-4 text-left"
 			>
 				<div class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 group-hover:scale-105 transition-transform">
 					<!-- Camera Icon -->
@@ -239,14 +246,14 @@
 					</svg>
 				</div>
 				<div class="text-left">
-					<h4 class="text-xs font-bold text-slate-200">Usar Cámara del Dispositivo</h4>
-					<p class="text-[10px] text-slate-500 mt-0.5">Captura un código directamente desde la cámara.</p>
+					<h4 class="text-xs font-bold">Usar cámara del dispositivo</h4>
+					<p class="text-[10px] muted mt-0.5">Captura un código directamente desde la cámara.</p>
 				</div>
 			</button>
 
 			<button 
 				on:click={() => scannerState = 'file'}
-				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group"
+				class="secondary-button w-full justify-start gap-3 p-4 text-left"
 			>
 				<div class="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:scale-105 transition-transform">
 					<!-- File Icon -->
@@ -255,14 +262,14 @@
 					</svg>
 				</div>
 				<div class="text-left">
-					<h4 class="text-xs font-bold text-slate-200">Subir una Imagen de QR</h4>
-					<p class="text-[10px] text-slate-500 mt-0.5">Arrastra una imagen o súbela desde tu explorador.</p>
+					<h4 class="text-xs font-bold">Subir una imagen de QR</h4>
+					<p class="text-[10px] muted mt-0.5">Arrastra una imagen o súbela desde tu explorador.</p>
 				</div>
 			</button>
 
 			<button 
 				on:click={() => scannerState = 'simulation'}
-				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group"
+				class="secondary-button w-full justify-start gap-3 p-4 text-left"
 			>
 				<div class="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 group-hover:scale-105 transition-transform">
 					<!-- Terminal/Simulation Icon -->
@@ -271,8 +278,8 @@
 					</svg>
 				</div>
 				<div class="text-left">
-					<h4 class="text-xs font-bold text-slate-200">Simulación y Pruebas</h4>
-					<p class="text-[10px] text-slate-500 mt-0.5">Pega texto de URIs de pago para pruebas veloces en escritorio.</p>
+					<h4 class="text-xs font-bold">Simulación y pruebas</h4>
+					<p class="text-[10px] muted mt-0.5">Pega texto de URIs de pago para pruebas veloces en escritorio.</p>
 				</div>
 			</button>
 		</div>
@@ -310,7 +317,7 @@
 
 			<button 
 				on:click={() => { stopCamera(); scannerState = 'idle'; }} 
-				class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl mt-4 border border-slate-700 transition-colors"
+				class="secondary-button w-full py-2.5 text-xs mt-4"
 			>
 				Volver Atrás
 			</button>
@@ -327,7 +334,9 @@
 				on:dragleave={handleDrag}
 				on:drop={handleDrop}
 				on:click={() => fileInput.click()}
+				on:keydown={handleFileDropKeydown}
 				role="button"
+				tabindex="0"
 			>
 				<input
 					type="file"
@@ -346,7 +355,7 @@
 
 			<button 
 				on:click={() => scannerState = 'idle'} 
-				class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+				class="secondary-button w-full py-2.5 text-xs"
 			>
 				Volver Atrás
 			</button>
@@ -368,13 +377,13 @@
 			<div class="flex gap-3">
 				<button 
 					on:click={() => scannerState = 'idle'} 
-					class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+					class="secondary-button flex-1 py-2.5 text-xs"
 				>
 					Volver
 				</button>
 				<button 
 					on:click={submitSimulation} 
-					class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white text-xs font-bold rounded-xl transition-all shadow-md"
+					class="primary-button flex-1 py-2.5 text-xs"
 				>
 					Decodificar QR
 				</button>

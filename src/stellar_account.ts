@@ -1,11 +1,4 @@
-export const stellarAccount1 = {
-	pubKey: 'GAISBLYYRGUC5E4BOLOJSEGTJCRAMFEMUX6JK42NMVR3UAL567GDD7ML',
-	privKey: 'SCATEAOCBWHTOGVS6TWC6HE36YX5XCHOETNWL3OISKESUVL3OR7ZQMPT',
-};
-export const stellarAccount2 = {
-	pubKey: 'GAMWGOJMSHBEQXO2SFI2YEDCH6FLC56XB5GKWC6JHTXLI5B4EJZGBVBL',
-	privKey: 'SDDF5OKB6E6A3DZB3ZWRKUZ2PQ4KDNLEX2Q2RDFPPRXR3HNJNP4N3SCB',
-};
+import { getOptionalEnv } from './services/env';
 
-export const stellarNetwork = 'https://horizon-testnet.stellar.org/';
+export const stellarNetwork = getOptionalEnv('VITE_STELLAR_NETWORK_URL') ?? 'https://horizon-testnet.stellar.org/';
 

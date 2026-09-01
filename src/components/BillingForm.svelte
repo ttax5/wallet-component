@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { session } from '../stores/session';
 	import { balances } from '../stores/wallet';
-	import { SUPPORTED_ASSETS, createPayment, establishTrustline } from '../services/stellar';
+	import { SUPPORTED_ASSETS, createPayment, establishTrustline, crearYFondearWalletTestnet } from '../services/stellar';
 	import { addNotification, notifications } from '../stores/notifications';
 	import WalletQR from '../lib/WalletQR.svelte';
 
@@ -65,17 +65,21 @@
 
 	// Simulación del pago del cliente en la red Stellar Testnet
 	async function simulateClientPayment() {
+		if (selectedAssetCode !== 'XLM') {
+			addNotification('error', 'Simulación no disponible', 'La simulación automática solo usa XLM. Para tokens, usa una cuenta cliente con trustline.');
+			return;
+		}
+
 		isSimulating = true;
 		addNotification('security', 'Simulador Cliente', 'Creando transacción Stellar del cliente...');
-		
-		// Generar un pagador de prueba (Usamos stellarAccount2 como cliente de pruebas)
-		// Si es el mismo que el del comercio, usaremos las llaves estáticas 2
-		const clientAccount = {
-			pubKey: 'GAMWGOJMSHBEQXO2SFI2YEDCH6FLC56XB5GKWC6JHTXLI5B4EJZGBVBL',
-			privKey: 'SDDF5OKB6E6A3DZB3ZWRKUZ2PQ4KDNLEX2Q2RDFPPRXR3HNJNP4N3SCB'
-		};
 
 		try {
+			const demoAccount = await crearYFondearWalletTestnet();
+			const clientAccount = {
+				pubKey: demoAccount.publicKey,
+				privKey: demoAccount.secretKey
+			};
+
 			const payment = await createPayment(
 				amount,
 				clientAccount,
@@ -109,13 +113,13 @@
 	}
 </script>
 
-<div class="max-w-xl m-auto bg-slate-900/40 border border-slate-800 backdrop-blur-md p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-fadeIn">
+<div class="form-card max-w-xl m-auto border p-8 relative overflow-hidden animate-fadeIn">
 	<div class="absolute -top-12 -left-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
 	{#if orderState === 'input'}
 		<div>
-			<h2 class="text-2xl font-black text-slate-100 tracking-tight mb-2">Generar Cobro</h2>
-			<p class="text-xs text-slate-400 mb-6">Especifica el monto, activo y memo para crear un código QR dinámico de cobro.</p>
+			<h2 class="text-2xl font-black tracking-tight mb-2">Generar cobro</h2>
+			<p class="text-xs muted mb-6">Especifica el monto, activo y memo para crear un código QR dinámico de cobro.</p>
 			
 			<div class="space-y-5">
 				<!-- Monto -->
@@ -160,7 +164,7 @@
 
 				<!-- Trustline Warning -->
 				{#if !hasTrustline}
-					<div class="p-4 bg-red-950/20 border border-red-500/20 rounded-2xl flex flex-col gap-2.5">
+					<div class="p-4 border rounded-2xl flex flex-col gap-2.5" style="background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.24)">
 						<div class="flex items-start gap-2 text-red-400">
 							<svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -175,7 +179,7 @@
 						<button 
 							on:click={handleEnableTrustline}
 							disabled={enablingTrustline}
-							class="w-full py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-xl border border-red-500/30 transition-colors disabled:opacity-50"
+							class="danger-button w-full py-2 text-xs disabled:opacity-50"
 						>
 							{#if enablingTrustline}
 								Estableciendo confianza...
@@ -190,7 +194,7 @@
 				<button
 					on:click={generateBilling}
 					disabled={!hasTrustline || !amount || amount <= 0}
-					class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-4"
+					class="primary-button w-full py-3.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed mt-4"
 				>
 					Generar Código QR de Cobro
 				</button>
@@ -198,8 +202,8 @@
 		</div>
 	{:else if orderState === 'waiting'}
 		<div class="flex flex-col items-center text-center">
-			<h2 class="text-xl font-black text-slate-100 tracking-tight mb-1">Esperando Pago</h2>
-			<p class="text-xs text-slate-400 mb-6">Muestra el código QR al cliente para realizar el pago.</p>
+			<h2 class="text-xl font-black tracking-tight mb-1">Esperando pago</h2>
+			<p class="text-xs muted mb-6">Muestra el código QR al cliente para realizar el pago.</p>
 
 			<!-- QR Code display -->
 			<div class="p-6 bg-white rounded-3xl shadow-xl inline-block border border-slate-200 hover:scale-[1.01] transition-transform duration-300">
@@ -207,7 +211,7 @@
 			</div>
 
 			<!-- Detalle de la Orden -->
-			<div class="w-full bg-slate-950/40 border border-slate-850 rounded-2xl p-4 mt-6 space-y-2.5 text-left text-xs">
+			<div class="subtle-panel w-full p-4 mt-6 space-y-2.5 text-left text-xs">
 				<div class="flex justify-between">
 					<span class="text-slate-500 font-semibold">Monto:</span>
 					<span class="text-slate-200 font-extrabold font-mono">{amount} {selectedAssetCode}</span>
@@ -229,7 +233,7 @@
 			</div>
 
 			<!-- Loading Indicator -->
-			<div class="flex items-center gap-2 mt-6 text-xs text-indigo-400 font-semibold bg-indigo-500/5 px-4 py-2.5 rounded-full border border-indigo-500/10">
+			<div class="badge-info mt-6">
 				<div class="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
 				Escuchando pagos entrantes en Stellar...
 			</div>
@@ -238,14 +242,15 @@
 			<div class="w-full flex gap-3 mt-6">
 				<button 
 					on:click={resetForm}
-					class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-250 text-xs font-bold rounded-xl transition-all border border-slate-700"
+					class="secondary-button flex-1 py-2.5 text-xs"
 				>
 					Cancelar
 				</button>
 				<button
 					on:click={simulateClientPayment}
-					disabled={isSimulating}
-					class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+					disabled={isSimulating || selectedAssetCode !== 'XLM'}
+					class="primary-button flex-1 py-2.5 text-xs disabled:opacity-50"
+					title={selectedAssetCode !== 'XLM' ? 'La simulación automática solo está disponible para XLM' : 'Simular pago del cliente'}
 				>
 					{#if isSimulating}
 						<div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -268,7 +273,7 @@
 			<h2 class="text-2xl font-black text-slate-100 tracking-tight">Cobro Recibido</h2>
 			<p class="text-xs text-slate-400 mt-1.5">La transacción se ha confirmado y los fondos están disponibles.</p>
 
-			<div class="w-full bg-slate-950/40 border border-slate-850 rounded-2xl p-5 mt-6 space-y-3 text-sm">
+			<div class="subtle-panel w-full p-5 mt-6 space-y-3 text-sm">
 				<div class="flex justify-between">
 					<span class="text-slate-500 font-semibold">Monto Acreditado:</span>
 					<span class="text-emerald-400 font-extrabold font-mono text-base">+{amount} {selectedAssetCode}</span>
@@ -290,7 +295,7 @@
 
 			<button
 				on:click={resetForm}
-				class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md mt-6"
+				class="primary-button w-full py-3.5 text-sm mt-6"
 			>
 				Generar Nuevo Cobro
 			</button>

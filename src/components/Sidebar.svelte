@@ -60,7 +60,7 @@
 </script>
 
 <aside 
-	class="sidebar flex flex-col justify-between h-screen fixed md:sticky top-0 left-0 bg-slate-900/80 border-r border-slate-800 transition-all duration-300 z-40 backdrop-blur-xl 
+	class="sidebar-shell flex flex-col justify-between h-screen fixed md:sticky top-0 left-0 border-r transition-all duration-300 z-40
 	{isCollapsed ? 'w-20' : 'w-64'} {mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}"
 >
 	<div>
@@ -68,22 +68,22 @@
 		<div class="flex items-center justify-between p-5 border-b border-slate-800/80 h-16">
 			{#if !isCollapsed}
 				<div class="flex items-center gap-2.5 animate-fadeIn">
-					<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-sm">
+					<div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">
 						PX
 					</div>
-					<span class="font-extrabold text-sm tracking-wide bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+					<span class="font-extrabold text-sm tracking-wide">
 						PAXAPOS
 					</span>
 				</div>
 			{:else}
-				<div class="m-auto w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md text-sm">
+				<div class="m-auto w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">
 					PX
 				</div>
 			{/if}
 			
 			<button 
 				on:click={toggleSidebar} 
-				class="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 transition-colors hidden md:inline-flex"
+				class="ghost-button p-1.5 hidden md:inline-flex"
 				aria-label="Colapsar menú"
 			>
 				<svg class="w-5 h-5 transform {isCollapsed ? 'rotate-180' : ''} transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,10 +96,7 @@
 		<nav class="flex-1 py-6 px-3 space-y-1.5">
 			{#each menuItems as item}
 				<button
-					class="w-full flex items-center gap-3.5 px-3 py-3 rounded-xl font-medium text-sm transition-all duration-200 group relative
-					{activeTab === item.id 
-						? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-600/10' 
-						: 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}"
+					class="nav-button w-full flex items-center gap-3.5 px-3 py-3 rounded-xl font-medium text-sm transition-all duration-200 group relative {activeTab === item.id ? 'active' : ''}"
 					on:click={() => {
 						activeTab = item.id;
 						mobileOpen = false;
@@ -113,7 +110,7 @@
 						<span class="animate-fadeIn">{item.label}</span>
 					{:else}
 						<!-- Tooltip flotante al colapsar -->
-						<div class="absolute left-16 bg-slate-950 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-xl border border-slate-800 z-50">
+						<div class="absolute left-16 bg-slate-950 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-800 z-50">
 							{item.label}
 						</div>
 					{/if}
@@ -123,7 +120,7 @@
 	</div>
 
 	<!-- Perfil del Comercio / Cierre de sesión -->
-	<div class="p-4 border-t border-slate-850 bg-slate-950/20">
+	<div class="p-4 border-t border-slate-850">
 		<div class="flex items-center gap-3 {isCollapsed ? 'justify-center' : ''}">
 			<!-- Avatar del usuario -->
 			{#if $session.googleUser?.picture}
@@ -133,7 +130,7 @@
 					class="w-9 h-9 rounded-full ring-2 ring-indigo-500/30 object-cover" 
 				/>
 			{:else}
-				<div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300 text-xs shrink-0 ring-2 ring-indigo-500/20">
+				<div class="w-9 h-9 rounded-full subtle-panel flex items-center justify-center font-bold text-xs shrink-0">
 					CO
 				</div>
 			{/if}
@@ -152,7 +149,7 @@
 				<!-- Botón cerrar sesión -->
 				<button 
 					on:click={handleLogout} 
-					class="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
+					class="danger-button p-1.5"
 					title="Cerrar sesión"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,7 +163,7 @@
 		{#if isCollapsed}
 			<button 
 				on:click={handleLogout} 
-				class="w-full flex justify-center py-2.5 mt-3 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
+				class="danger-button w-full flex justify-center py-2.5 mt-3"
 				title="Cerrar sesión"
 			>
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

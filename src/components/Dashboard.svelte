@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { session } from '../stores/session';
 	import { balances, loadingBalances, transactions } from '../stores/wallet';
-	import { loadBalances, establishTrustline } from '../services/stellar';
+	import { loadBalances, establishTrustline, SUPPORTED_ASSETS } from '../services/stellar';
 	import type { ViewType } from '../types';
 	import { addNotification } from '../stores/notifications';
 
@@ -12,14 +12,15 @@
 	let salesToday = 0;
 	let salesMonth = 0;
 	let activeTrustlines = 0;
-	let totalTrustlines = 2; // USDC y USDT son los configurados por defecto
+	let totalTrustlines = 0;
 	let trustlinePercent = 0;
 
 	// Recalcular métricas cuando cambien balances o transacciones
 	$: {
 		totalUsd = $balances.reduce((sum, item) => sum + item.usdValue, 0);
 		activeTrustlines = $balances.filter(item => item.code !== 'XLM' && item.hasTrustline).length;
-		trustlinePercent = (activeTrustlines / totalTrustlines) * 100;
+		totalTrustlines = SUPPORTED_ASSETS.filter(item => item.code !== 'XLM' && item.issuer).length;
+		trustlinePercent = totalTrustlines > 0 ? (activeTrustlines / totalTrustlines) * 100 : 0;
 		
 		// Filtrar cobros/pagos recibidos reales
 		const receivedTxs = $transactions.filter(tx => {
@@ -145,19 +146,19 @@
 
 <div class="space-y-6 animate-fadeIn">
 	<!-- Top Bar / Bienvenida -->
-	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
+	<div class="panel flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 border">
 		<div>
-			<h1 class="text-2xl font-black text-slate-100 flex items-center gap-2">
+			<h1 class="text-2xl font-black flex items-center gap-2">
 				Hola, {$session.googleUser?.name || 'Comercio'} 
-				<span class="text-xs px-2.5 py-1 rounded-full font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+				<span class="badge-info">
 					{$session.method === 'google' ? 'OAuth Activo' : 'Tester'}
 				</span>
 			</h1>
-			<p class="text-xs text-slate-400 mt-1 font-mono flex items-center gap-1.5">
-				Wallet: <span class="bg-slate-950 px-2 py-0.5 rounded text-indigo-400 font-semibold select-all">{formatKey($session.stellarAccount.pubKey)}</span>
+			<p class="text-xs muted mt-2 font-mono flex items-center gap-1.5">
+				Wallet: <span class="mono-chip select-all">{formatKey($session.stellarAccount.pubKey)}</span>
 				<button 
 					on:click={() => copyToClipboard($session.stellarAccount.pubKey, 'Dirección')}
-					class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors"
+					class="ghost-button p-1"
 					title="Copiar dirección"
 				>
 					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +172,7 @@
 			<button 
 				on:click={reloadData} 
 				disabled={$loadingBalances}
-				class="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold rounded-xl transition-all border border-slate-700 disabled:opacity-50 flex items-center gap-1.5"
+				class="secondary-button px-4 py-2 text-xs disabled:opacity-50"
 			>
 				{#if $loadingBalances}
 					<div class="w-3.5 h-3.5 border-2 border-slate-400 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -185,7 +186,7 @@
 			</button>
 			<button 
 				on:click={() => activeTab = 'billing'} 
-				class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5"
+				class="primary-button px-4 py-2 text-xs"
 			>
 				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -198,28 +199,27 @@
 	<!-- Grid de Balances y Métricas -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<!-- Card de Balance General Consolidad -->
-		<div class="lg:col-span-1 bg-gradient-to-br from-indigo-900/60 to-purple-950/60 p-6 rounded-3xl border border-indigo-800/40 relative overflow-hidden flex flex-col justify-between min-h-[200px] shadow-xl shadow-indigo-950/20 backdrop-blur-md">
-			<div class="absolute -top-12 -right-12 w-36 h-36 bg-cyan-400/10 rounded-full blur-2xl pointer-events-none"></div>
+		<div class="panel lg:col-span-1 p-6 border relative overflow-hidden flex flex-col justify-between min-h-[200px]">
 			<div>
-				<span class="text-xs font-bold text-indigo-300 uppercase tracking-widest">Balance Consolidado</span>
-				<h2 class="text-4xl font-black text-white tracking-tight mt-2">
+				<span class="text-xs font-bold secondary-text">Balance consolidado</span>
+				<h2 class="text-4xl font-black tracking-tight mt-2">
 					{#if $loadingBalances}
 						<div class="h-10 w-44 bg-white/10 rounded animate-pulse"></div>
 					{:else}
 						{formatCurrency(totalUsd)}
 					{/if}
 				</h2>
-				<span class="text-[10px] text-indigo-200 mt-1 block">Suma estimada de XLM + USDC + USDT</span>
+				<span class="text-[10px] muted mt-1 block">Suma estimada de activos disponibles</span>
 			</div>
 			
-			<div class="flex items-center gap-3 pt-6 border-t border-indigo-800/30 mt-4">
+			<div class="flex items-center gap-3 pt-6 border-t border-slate-850 mt-4">
 				<div class="flex-1">
-					<div class="flex justify-between text-[10px] font-bold text-indigo-300">
+					<div class="flex justify-between text-[10px] font-bold secondary-text">
 						<span>Habilitación Stellar</span>
 						<span>{activeTrustlines}/{totalTrustlines} activos</span>
 					</div>
 					<div class="w-full bg-slate-950/50 h-1.5 rounded-full mt-1.5 overflow-hidden">
-						<div class="bg-gradient-to-r from-cyan-400 to-indigo-400 h-full rounded-full transition-all duration-500" style="width: {trustlinePercent}%"></div>
+						<div class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: {trustlinePercent}%"></div>
 					</div>
 				</div>
 			</div>
@@ -228,14 +228,14 @@
 		<!-- Card de Estadísticas Rápidas -->
 		<div class="lg:col-span-2 grid grid-cols-2 gap-4">
 			<!-- Ventas Hoy -->
-			<div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800 backdrop-blur-sm flex flex-col justify-between">
+			<div class="metric-card flex flex-col justify-between">
 				<div>
-					<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cobrado Hoy</span>
-					<h3 class="text-2xl font-extrabold text-slate-100 tracking-tight mt-1.5">
+					<span class="text-[10px] font-bold secondary-text">Cobrado hoy</span>
+					<h3 class="text-2xl font-extrabold tracking-tight mt-1.5">
 						{formatCurrency(salesToday)}
 					</h3>
 				</div>
-				<span class="text-[9px] text-emerald-400 font-semibold flex items-center gap-0.5 mt-4">
+				<span class="text-[9px] font-semibold flex items-center gap-0.5 mt-4" style="color: var(--app-success)">
 					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
 					</svg>
@@ -244,10 +244,10 @@
 			</div>
 
 			<!-- Ventas Mes -->
-			<div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800 backdrop-blur-sm flex flex-col justify-between">
+			<div class="metric-card flex flex-col justify-between">
 				<div>
-					<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cobrado este Mes</span>
-					<h3 class="text-2xl font-extrabold text-slate-100 tracking-tight mt-1.5">
+					<span class="text-[10px] font-bold secondary-text">Cobrado este mes</span>
+					<h3 class="text-2xl font-extrabold tracking-tight mt-1.5">
 						{formatCurrency(salesMonth)}
 					</h3>
 				</div>
@@ -257,10 +257,10 @@
 			</div>
 
 			<!-- Transacciones procesadas -->
-			<div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800 backdrop-blur-sm flex flex-col justify-between">
+			<div class="metric-card flex flex-col justify-between">
 				<div>
-					<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Transacciones</span>
-					<h3 class="text-2xl font-extrabold text-slate-100 tracking-tight mt-1.5">
+					<span class="text-[10px] font-bold secondary-text">Transacciones</span>
+					<h3 class="text-2xl font-extrabold tracking-tight mt-1.5">
 						{$transactions.length}
 					</h3>
 				</div>
@@ -268,9 +268,9 @@
 			</div>
 
 			<!-- Estado de Cuenta -->
-			<div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800 backdrop-blur-sm flex flex-col justify-between">
+			<div class="metric-card flex flex-col justify-between">
 				<div>
-					<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Red Conectada</span>
+					<span class="text-[10px] font-bold secondary-text">Red conectada</span>
 					<h3 class="text-lg font-bold text-orange-400 tracking-tight mt-1.5">
 						Stellar Testnet
 					</h3>
@@ -284,8 +284,8 @@
 	</div>
 
 	<!-- Gráfico de Ventas Semanales -->
-	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
-		<h3 class="text-sm font-bold text-slate-300 mb-4 tracking-wide">Volumen de Cobros Semanal ($)</h3>
+	<div class="panel p-6 border">
+		<h3 class="section-heading mb-4">Volumen de cobros semanal</h3>
 		
 		<div class="w-full overflow-hidden flex items-end">
 			<svg class="w-full overflow-visible" viewBox="0 0 500 120" preserveAspectRatio="none">
@@ -329,13 +329,13 @@
 	</div>
 
 	<!-- Listado de Activos y Trustlines -->
-	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
-		<h3 class="text-sm font-bold text-slate-300 mb-4 tracking-wide">Desglose de Activos</h3>
+	<div class="panel p-6 border">
+		<h3 class="section-heading mb-4">Desglose de activos</h3>
 		
 		<div class="flex flex-col gap-3">
 			{#if $balances.length > 0}
 				{#each $balances as item}
-					<div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-950/40 border border-slate-850 rounded-xl gap-3">
+					<div class="asset-row flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3">
 						<div class="flex items-center gap-3">
 							<img src={item.logo} alt={item.code} class="w-8 h-8 rounded-full bg-slate-900" />
 							<div>
@@ -358,11 +358,15 @@
 							<!-- Indicador Trustline -->
 							<div>
 								{#if item.code === 'XLM'}
-									<span class="px-2.5 py-1 text-[9px] font-bold bg-slate-800 border border-slate-700 rounded-lg text-slate-400">
+									<span class="badge">
 										Nativo (Siempre Activo)
 									</span>
+								{:else if !item.issuer}
+									<span class="badge-warning">
+										Configurar issuer
+									</span>
 								{:else if item.hasTrustline}
-									<span class="px-2.5 py-1 text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex items-center gap-1">
+									<span class="badge-success">
 										<span class="w-1 h-1 rounded-full bg-emerald-400"></span>
 										Habilitado
 									</span>
@@ -374,7 +378,7 @@
 										<button
 											on:click={() => handleEnableTrustline(item.code, item.issuer)}
 											disabled={loadingActionId === item.code}
-											class="px-2.5 py-1 text-[9px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors disabled:opacity-50"
+											class="primary-button px-2.5 py-1 text-[9px] disabled:opacity-50"
 										>
 											{#if loadingActionId === item.code}
 												Habilitando...

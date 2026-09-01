@@ -26,17 +26,19 @@
 		addingAsset = true;
 		
 		try {
-			addNotification('security', 'Creando Trustline', `Estableciendo canal de confianza para ${customCode}...`);
+			const assetCode = customCode.toUpperCase().trim();
+			const issuer = customIssuer.trim();
+			addNotification('security', 'Creando Trustline', `Estableciendo canal de confianza para ${assetCode}...`);
 			const success = await establishTrustline(
 				$session.stellarAccount,
-				customCode.toUpperCase().trim(),
-				customIssuer.trim()
+				assetCode,
+				issuer
 			);
 
 			if (success) {
 				customCode = '';
 				customIssuer = '';
-				addNotification('trustline', 'Activo Registrado', `Se habilitó el token personalizado ${customCode.toUpperCase()} en tu cuenta.`);
+				addNotification('trustline', 'Activo Registrado', `Se habilitó el token personalizado ${assetCode} en tu cuenta.`);
 				await loadBalances($session.stellarAccount.pubKey);
 			}
 		} catch (e) {
@@ -62,7 +64,7 @@
 
 <div class="space-y-6 animate-fadeIn">
 	<!-- Panel de Seguridad y Resguardo de Claves -->
-	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md relative overflow-hidden">
+	<div class="panel p-6 border relative overflow-hidden">
 		<div class="absolute -top-12 -right-12 w-28 h-28 bg-red-500/10 rounded-full blur-2xl pointer-events-none"></div>
 		
 		<div class="flex items-start gap-3">
@@ -73,21 +75,21 @@
 				</svg>
 			</div>
 			<div class="flex-1">
-				<h3 class="text-sm font-extrabold text-slate-200 tracking-wide">Copia de Seguridad y Llaves Criptográficas</h3>
-				<p class="text-xs text-slate-400 mt-1 leading-relaxed">
+				<h3 class="section-heading">Copia de seguridad y llaves criptográficas</h3>
+				<p class="text-xs muted mt-1 leading-relaxed">
 					En el ecosistema Stellar, tú eres el dueño absoluto de tus fondos. Guarda esta Clave Privada en un lugar seguro. Si pierdes el navegador o borras la caché, necesitarás esta clave para recuperar el acceso a tus saldos.
 				</p>
 			</div>
 		</div>
 
-		<div class="bg-slate-950/40 border border-slate-850 p-4 rounded-xl mt-5 space-y-4">
+		<div class="subtle-panel p-4 mt-5 space-y-4">
 			<div>
 				<span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Dirección Pública (Public Key)</span>
 				<div class="flex items-center justify-between gap-3 mt-1 text-xs font-mono bg-slate-950 p-2.5 rounded-lg border border-slate-900 text-slate-300">
 					<span class="truncate pr-4 select-all">{$session.stellarAccount.pubKey}</span>
 					<button 
 						on:click={() => copyToClipboard($session.stellarAccount.pubKey, 'Dirección Pública')}
-						class="text-indigo-400 hover:text-indigo-300 font-bold font-sans shrink-0 hover:scale-102 transition-transform"
+						class="ghost-button px-2 py-1 font-sans shrink-0"
 					>
 						Copiar
 					</button>
@@ -117,7 +119,7 @@
 				{:else}
 					<button
 						on:click={() => showPrivateKey = true}
-						class="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-350 text-xs font-bold rounded-xl transition-all mt-1 flex items-center gap-1.5"
+					class="danger-button px-4 py-2 text-xs mt-1"
 					>
 						Mostrar Clave Privada Secreta
 					</button>
@@ -127,13 +129,13 @@
 	</div>
 
 	<!-- Listado de Activos del Comercio -->
-	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
-		<h3 class="text-sm font-bold text-slate-300 mb-4 tracking-wide">Administrar Canales de Confianza (Trustlines)</h3>
+	<div class="panel p-6 border">
+		<h3 class="section-heading mb-4">Administrar canales de confianza</h3>
 
 		<div class="flex flex-col gap-3.5">
 			{#if $balances.length > 0}
 				{#each $balances as item}
-					<div class="flex items-center justify-between p-4 bg-slate-950/40 border border-slate-850 rounded-xl">
+					<div class="asset-row flex items-center justify-between p-4">
 						<div class="flex items-center gap-3">
 							<img src={item.logo} alt={item.code} class="w-8 h-8 rounded-full bg-slate-900" />
 							<div>
@@ -146,11 +148,15 @@
 
 						<div class="flex items-center gap-4">
 							{#if item.code === 'XLM'}
-								<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+								<span class="badge">
 									Nativo
 								</span>
+							{:else if !item.issuer}
+								<span class="badge-warning">
+									Configurar issuer
+								</span>
 							{:else if item.hasTrustline}
-								<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+								<span class="badge-success">
 									<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
 									Activo
 								</span>
@@ -158,7 +164,7 @@
 								<button
 									on:click={() => handleEnableTrustline(item.code, item.issuer)}
 									disabled={loadingActionCode === item.code}
-									class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-colors disabled:opacity-50"
+									class="primary-button px-3 py-1.5 text-[10px] disabled:opacity-50"
 								>
 									{#if loadingActionCode === item.code}
 										Habilitando...
@@ -179,9 +185,9 @@
 	</div>
 
 	<!-- Formulario para Activo Personalizado -->
-	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
-		<h3 class="text-sm font-bold text-slate-300 mb-2 tracking-wide">Añadir Activo Personalizado de Stellar</h3>
-		<p class="text-xs text-slate-400 mb-5">Habilita cualquier token (activo) compatible con Stellar ingresando su código de activo y emisor.</p>
+	<div class="panel p-6 border">
+		<h3 class="section-heading mb-2">Añadir activo personalizado de Stellar</h3>
+		<p class="text-xs muted mb-5">Habilita cualquier token compatible con Stellar ingresando su código de activo y emisor.</p>
 		
 		<div class="space-y-4">
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -212,7 +218,7 @@
 			<button
 				on:click={handleAddCustomAsset}
 				disabled={addingAsset || !customCode || !customIssuer}
-				class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-2"
+				class="primary-button w-full py-3 text-xs disabled:opacity-40 disabled:cursor-not-allowed mt-2"
 			>
 				{#if addingAsset}
 					Enviando trustline a Stellar...

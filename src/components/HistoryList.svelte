@@ -81,22 +81,22 @@
 
 <div class="space-y-6 animate-fadeIn">
 	<!-- Panel de Filtros -->
-	<div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/40 p-5 rounded-2xl border border-slate-800 backdrop-blur-md">
+	<div class="panel flex flex-col sm:flex-row items-center justify-between gap-4 p-5 border">
 		<div class="flex flex-wrap items-center gap-2">
 			<button
-				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'all' ? 'bg-slate-800 text-indigo-400 border border-indigo-500/10' : 'text-slate-400 hover:text-slate-200'}"
+				class="tab-button px-3.5 py-1.5 text-xs {filterType === 'all' ? 'active' : ''}"
 				on:click={() => filterType = 'all'}
 			>
 				Todos
 			</button>
 			<button
-				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'credit' ? 'bg-slate-800 text-emerald-400 border border-emerald-500/10' : 'text-slate-400 hover:text-slate-200'}"
+				class="tab-button px-3.5 py-1.5 text-xs {filterType === 'credit' ? 'active' : ''}"
 				on:click={() => filterType = 'credit'}
 			>
 				Ingresos
 			</button>
 			<button
-				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'debit' ? 'bg-slate-800 text-rose-400 border border-rose-500/10' : 'text-slate-400 hover:text-slate-200'}"
+				class="tab-button px-3.5 py-1.5 text-xs {filterType === 'debit' ? 'active' : ''}"
 				on:click={() => filterType = 'debit'}
 			>
 				Egresos
@@ -105,7 +105,7 @@
 
 		<div class="flex items-center gap-2 w-full sm:w-auto">
 			<select
-				class="bg-slate-950 border border-slate-800 text-slate-350 px-3.5 py-1.5 rounded-lg text-xs outline-none focus:border-indigo-500 w-full sm:w-40 font-semibold"
+				class="px-3.5 py-1.5 rounded-lg text-xs outline-none w-full sm:w-40 font-semibold"
 				bind:value={filterAsset}
 			>
 				<option value="all">Cualquier Activo</option>
@@ -117,7 +117,7 @@
 			<button 
 				on:click={reloadHistory}
 				disabled={$loadingTransactions}
-				class="p-2 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-slate-100 rounded-lg border border-slate-700 transition-colors disabled:opacity-50 shrink-0"
+				class="icon-button disabled:opacity-50 shrink-0"
 				title="Refrescar historial"
 			>
 				<svg class="w-4 h-4 {$loadingTransactions ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,8 +128,8 @@
 	</div>
 
 	<!-- Listado Histórico -->
-	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
-		<h3 class="text-sm font-bold text-slate-300 mb-4 tracking-wide">Registro de Actividad</h3>
+	<div class="panel p-6 border">
+		<h3 class="section-heading mb-4">Registro de actividad</h3>
 
 		<div class="space-y-3">
 			{#if $loadingTransactions}
@@ -138,7 +138,7 @@
 				{/each}
 			{:else if filteredTxs.length > 0}
 				{#each filteredTxs as details}
-					<div class="flex items-center justify-between p-4 bg-slate-950/30 hover:bg-slate-950/60 border border-slate-850 rounded-xl transition-all duration-200 group">
+					<div class="history-row flex items-center justify-between p-4 transition-all duration-200 group">
 						<div class="flex items-center gap-3.5">
 							<!-- Icono del Estado de Transacción -->
 							<div class="p-2.5 rounded-xl flex items-center justify-center shrink-0 border
