@@ -12,9 +12,11 @@
 	let assetSelect: HTMLSelectElement;
 	
 	let openScanner = false;
-	let txState: 'idle' | 'preparing' | 'submitting' | 'success' | 'error' = 'idle';
+	let txState: 'idle' | 'confirm' | 'preparing' | 'submitting' | 'success' | 'error' = 'idle';
 	let errorMessage = '';
 	let successHash = '';
+	let copiedRecipient = false;
+	let copyTimeout: any;
 
 	// Obtener el balance del activo seleccionado reactivamente
 	$: selectedAsset = SUPPORTED_ASSETS.find(a => a.code === selectedAssetCode);
@@ -25,16 +27,21 @@
 		const data = event.detail;
 		recipient = data.recipient;
 		amount = data.amount > 0 ? data.amount : amount;
-		selectedAssetCode = data.assetCode;
+		selectedAssetCode = data.assetCode || selectedAssetCode;
 		memoText = data.memo || memoText;
 		openScanner = false;
 		
-		addNotification('security', 'QR Aplicado', `Datos de pago cargados para ${data.assetCode}.`);
+		addNotification('security', 'QR Escaneado', `Datos cargados para pago de ${selectedAssetCode}.`);
+
+		// Si el QR provee destinatario y monto válidos, pasar a confirmación directamente
+		if (recipient && recipient.startsWith('G') && recipient.length === 56 && amount && amount > 0) {
+			promptConfirmation();
+		}
 	}
 
-	async function executeTransfer() {
+	function promptConfirmation() {
 		// Validaciones preventivas
-		if (recipient.length !== 56 || !recipient.startsWith('G')) {
+		if (!recipient || recipient.length !== 56 || !recipient.startsWith('G')) {
 			addNotification('error', 'Destinatario Inválido', 'La dirección Stellar debe iniciar con "G" y tener 56 caracteres.');
 			return;
 		}
@@ -49,6 +56,10 @@
 			return;
 		}
 
+		txState = 'confirm';
+	}
+
+	async function executeTransfer() {
 		txState = 'preparing';
 		
 		try {
@@ -90,6 +101,20 @@
 	function formatKey(key: string): string {
 		if (!key) return '';
 		return `${key.slice(0, 10)}...${key.slice(-10)}`;
+	}
+
+	async function copyRecipientKey() {
+		if (!recipient) return;
+		try {
+			await navigator.clipboard.writeText(recipient);
+			copiedRecipient = true;
+			clearTimeout(copyTimeout);
+			copyTimeout = setTimeout(() => {
+				copiedRecipient = false;
+			}, 2000);
+		} catch (err) {
+			console.error(err);
+		}
 	}
 </script>
 
@@ -216,12 +241,104 @@
 					/>
 				</div>
 
+				<!-- Botón que abre la Confirmación -->
 				<button
-					on:click={executeTransfer}
+					on:click={promptConfirmation}
 					disabled={!recipient || !amount || amount <= 0}
 					class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-4 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
-					Confirmar y Enviar Fondos
+					Continuar y Revisar Pago
+				</button>
+			</div>
+		</div>
+	{:else if txState === 'confirm'}
+		<!-- Pantalla de Confirmación de Transacción -->
+		<div class="flex flex-col text-left py-2 animate-fadeIn">
+			<div class="flex items-center gap-3 mb-5">
+				<div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+					</svg>
+				</div>
+				<div>
+					<h2 class="text-xl font-black text-slate-100 tracking-tight">Confirmar Transacción</h2>
+					<p class="text-xs text-slate-400">Verifica los datos del envío antes de autorizar la operación.</p>
+				</div>
+			</div>
+
+			<!-- Mensaje Principal Destacado Requerido -->
+			<div class="p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl mb-5 text-center">
+				<p class="text-sm text-slate-200 font-medium">
+					Le enviarás <strong class="text-indigo-300 font-extrabold font-mono text-base">{amount} {selectedAssetCode}</strong> a
+				</p>
+				<div class="mt-1.5 flex items-center justify-center gap-1.5">
+					<span class="text-xs font-mono font-semibold text-indigo-400 bg-slate-950/80 px-2 py-1 rounded-lg border border-slate-800 break-all select-all">
+						{recipient}
+					</span>
+					<button
+						type="button"
+						on:click={copyRecipientKey}
+						class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors focus:ring-1 focus:ring-indigo-400 focus:outline-none shrink-0"
+						title="Copiar dirección"
+						aria-label="Copiar dirección del destinatario"
+					>
+						{#if copiedRecipient}
+							<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+							</svg>
+						{:else}
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+							</svg>
+						{/if}
+					</button>
+				</div>
+				<p class="text-xs font-bold text-slate-300 mt-2.5">¿Confirmar?</p>
+			</div>
+
+			<!-- Tarjeta de Desglose de Operación -->
+			<div class="w-full bg-slate-950/50 border border-slate-850 rounded-2xl p-4 space-y-2.5 text-xs">
+				<div class="flex justify-between items-center">
+					<span class="text-slate-500 font-semibold">Monto a Enviar:</span>
+					<span class="text-slate-100 font-extrabold font-mono text-sm">{amount} {selectedAssetCode}</span>
+				</div>
+				<div class="flex justify-between items-center">
+					<span class="text-slate-500 font-semibold">Activo Cripto:</span>
+					<span class="text-slate-300 font-semibold">{selectedAsset?.name} ({selectedAssetCode})</span>
+				</div>
+				<div class="flex justify-between items-center">
+					<span class="text-slate-500 font-semibold">Saldo Disponible:</span>
+					<span class="text-slate-400 font-mono">{currentAssetBalance.toFixed(4)} {selectedAssetCode}</span>
+				</div>
+				<div class="flex justify-between items-center border-t border-slate-900 pt-2">
+					<span class="text-slate-500 font-semibold">Saldo Posterior (Estimado):</span>
+					<span class="text-emerald-400 font-mono font-bold">
+						{Math.max(0, currentAssetBalance - amount).toFixed(4)} {selectedAssetCode}
+					</span>
+				</div>
+				{#if memoText}
+					<div class="flex justify-between items-center border-t border-slate-900 pt-2">
+						<span class="text-slate-500 font-semibold">Memo / Concepto:</span>
+						<span class="text-slate-200 font-mono">{memoText}</span>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Botones de Acción (Cancelar y Confirmar) -->
+			<div class="w-full flex gap-3 mt-6">
+				<button 
+					type="button"
+					on:click={() => txState = 'idle'}
+					class="flex-1 py-3 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+				>
+					Cancelar
+				</button>
+				<button 
+					type="button"
+					on:click={executeTransfer}
+					class="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl shadow-lg transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+				>
+					Confirmar
 				</button>
 			</div>
 		</div>

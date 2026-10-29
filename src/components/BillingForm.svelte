@@ -13,11 +13,29 @@
 	let isSimulating = false;
 	let enablingTrustline = false;
 	let assetSelect: HTMLSelectElement;
+	let copiedAddress = false;
+	let copyTimeout: any;
 
 	// Verificar si el comercio tiene habilitado el activo seleccionado
 	$: selectedAsset = SUPPORTED_ASSETS.find(a => a.code === selectedAssetCode);
 	$: hasTrustline = selectedAssetCode === 'XLM' || 
 		($balances.find(b => b.code === selectedAssetCode)?.hasTrustline ?? false);
+
+	async function copyAddress() {
+		const pubKey = $session.stellarAccount?.pubKey;
+		if (!pubKey) return;
+		try {
+			await navigator.clipboard.writeText(pubKey);
+			copiedAddress = true;
+			addNotification('security', '¡Dirección Copiada!', 'La dirección pública Stellar ha sido copiada al portapapeles.');
+			clearTimeout(copyTimeout);
+			copyTimeout = setTimeout(() => {
+				copiedAddress = false;
+			}, 2500);
+		} catch (err) {
+			console.error('Error al copiar dirección:', err);
+		}
+	}
 
 	async function handleEnableTrustline() {
 		if (!selectedAsset?.issuer) return;
@@ -105,6 +123,7 @@
 		memoText = '';
 		generatedQrValue = '';
 		orderState = 'input';
+		copiedAddress = false;
 	}
 </script>
 
@@ -114,8 +133,36 @@
 	{#if orderState === 'input'}
 		<div>
 			<h2 class="text-2xl font-black text-slate-100 tracking-tight mb-2">Generar Cobro</h2>
-			<p class="text-xs text-slate-400 mb-6">Especifica el monto, activo y memo para crear un código QR dinámico de cobro.</p>
+			<p class="text-xs text-slate-400 mb-5">Especifica el monto, activo y memo para crear un código QR dinámico de cobro.</p>
 			
+			<!-- Dirección del Comercio con botón Copiar -->
+			<div class="mb-5 p-3.5 bg-slate-950/60 border border-slate-800/80 rounded-xl flex items-center justify-between gap-3 text-xs">
+				<div class="min-w-0 flex-1">
+					<span class="text-slate-500 font-semibold block text-[10px] uppercase tracking-wider">Tu Dirección Pública (Recepción)</span>
+					<span class="text-indigo-400 font-mono font-medium truncate block select-all text-xs" title={$session.stellarAccount.pubKey}>
+						{formatKey($session.stellarAccount.pubKey)}
+					</span>
+				</div>
+				<button
+					type="button"
+					on:click={copyAddress}
+					class="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 flex items-center gap-1.5 shrink-0 transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+					aria-label="Copiar dirección pública"
+				>
+					{#if copiedAddress}
+						<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+						</svg>
+						<span class="text-emerald-400 font-bold">¡Copiada!</span>
+					{:else}
+						<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+						</svg>
+						<span>Copiar Dirección</span>
+					{/if}
+				</button>
+			</div>
+
 			<div class="space-y-5">
 				<!-- Monto -->
 				<div>
@@ -204,15 +251,37 @@
 	{:else if orderState === 'waiting'}
 		<div class="flex flex-col items-center text-center">
 			<h2 class="text-xl font-black text-slate-100 tracking-tight mb-1">Esperando Pago</h2>
-			<p class="text-xs text-slate-400 mb-6">Muestra el código QR al cliente para realizar el pago.</p>
+			<p class="text-xs text-slate-400 mb-5">Muestra el código QR al cliente para realizar el pago o comparte tu dirección.</p>
 
 			<!-- QR Code display responsive -->
 			<div class="p-3 sm:p-6 bg-white rounded-2xl sm:rounded-3xl shadow-xl inline-block max-w-full border border-slate-200 hover:scale-[1.01] transition-transform duration-300">
 				<WalletQR value={generatedQrValue} size="220" />
 			</div>
 
+			<!-- Botón de Copiar Dirección Destacado -->
+			<div class="w-full mt-5">
+				<button
+					type="button"
+					on:click={copyAddress}
+					class="w-full py-3 px-4 bg-slate-800/90 hover:bg-slate-750 text-slate-100 text-xs font-bold rounded-xl transition-all border border-slate-700 flex items-center justify-center gap-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none shadow-sm"
+					aria-label="Copiar dirección para recibir pago"
+				>
+					{#if copiedAddress}
+						<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+						</svg>
+						<span class="text-emerald-400 font-bold">¡Dirección Copiada al Portapapeles!</span>
+					{:else}
+						<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+						</svg>
+						<span>Copiar Dirección</span>
+					{/if}
+				</button>
+			</div>
+
 			<!-- Detalle de la Orden -->
-			<div class="w-full bg-slate-950/40 border border-slate-850 rounded-2xl p-4 mt-6 space-y-2.5 text-left text-xs">
+			<div class="w-full bg-slate-950/40 border border-slate-850 rounded-2xl p-4 mt-4 space-y-2.5 text-left text-xs">
 				<div class="flex justify-between">
 					<span class="text-slate-500 font-semibold">Monto:</span>
 					<span class="text-slate-200 font-extrabold font-mono">{amount} {selectedAssetCode}</span>
@@ -227,9 +296,28 @@
 						<span class="text-slate-200 font-mono">{memoText}</span>
 					</div>
 				{/if}
-				<div class="flex justify-between border-t border-slate-900 pt-2.5">
+				<div class="flex justify-between items-center border-t border-slate-900 pt-2.5">
 					<span class="text-slate-500 font-semibold">Destinatario:</span>
-					<span class="text-indigo-400 font-mono font-medium">{formatKey($session.stellarAccount.pubKey)}</span>
+					<div class="flex items-center gap-1.5">
+						<span class="text-indigo-400 font-mono font-medium">{formatKey($session.stellarAccount.pubKey)}</span>
+						<button
+							type="button"
+							on:click={copyAddress}
+							class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-300 transition-colors focus:ring-1 focus:ring-indigo-400 focus:outline-none"
+							title="Copiar dirección completa"
+							aria-label="Copiar dirección completa"
+						>
+							{#if copiedAddress}
+								<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+								</svg>
+							{:else}
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+								</svg>
+							{/if}
+						</button>
+					</div>
 				</div>
 			</div>
 

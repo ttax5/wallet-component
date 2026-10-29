@@ -185,7 +185,7 @@ export async function loadBalances(address: string) {
 	}
 }
 
-// Cargar el historial de transacciones (pagos)
+// Cargar el historial de transacciones (pagos y operaciones previas)
 export async function loadTransactionsHistory(address: string) {
 	if (!address || address.length !== 56) {
 		transactionsStore.set([]);
@@ -194,29 +194,71 @@ export async function loadTransactionsHistory(address: string) {
 	loadingTransactions.set(true);
 	try {
 		// 1. Consultar de Horizon directamente (Blockchain real)
-		const response = await server
-			.payments()
-			.forAccount(address)
-			.order('desc')
-			.limit(15)
-			.call();
+		let horizonRecords: any[] = [];
+		try {
+			const response = await server
+				.payments()
+				.forAccount(address)
+				.order('desc')
+				.limit(30)
+				.call();
+			horizonRecords = response.records || [];
+		} catch (err) {
+			console.warn('Horizon payments endpoint returned empty or error, falling back to operations:', err);
+		}
+
+		// Como respaldo para cuentas con movimientos no clasificados como simple payment
+		if (horizonRecords.length === 0) {
+			try {
+				const ops = await server
+					.operations()
+					.forAccount(address)
+					.order('desc')
+					.limit(30)
+					.call();
+				horizonRecords = (ops.records || []).filter((op: any) => 
+					op.type === 'payment' || 
+					op.type === 'create_account' || 
+					op.type === 'account_merge' ||
+					op.type === 'path_payment_strict_receive' ||
+					op.type === 'path_payment_strict_send'
+				);
+			} catch (err) {
+				console.warn('Horizon operations endpoint error:', err);
+			}
+		}
 		
-		// 2. Si el usuario está en Firebase, sincronizar transacciones en Firestore
+		// 2. Si el usuario está en Firebase, sincronizar y combinar con Firestore sin perder los datos de Horizon
+		let combinedRecords = [...horizonRecords];
 		const firebaseUser = auth.currentUser;
 		if (firebaseUser) {
-			for (const record of response.records) {
-				await syncTransactionToFirestore(firebaseUser.uid, record);
-			}
+			try {
+				for (const record of horizonRecords) {
+					await syncTransactionToFirestore(firebaseUser.uid, record);
+				}
 
-			// 3. Consultar y ordenar desde Firestore usando el servicio centralizado
-			const localRecords = await fetchUserTransactions(firebaseUser.uid, 15);
-			transactionsStore.set(localRecords.length > 0 ? localRecords : response.records);
-		} else {
-			transactionsStore.set(response.records);
+				const localRecords = await fetchUserTransactions(firebaseUser.uid, 30);
+				if (localRecords && localRecords.length > 0) {
+					const existingHashes = new Set(horizonRecords.map(r => r.transaction_hash || r.id));
+					for (const lr of localRecords) {
+						if (!existingHashes.has(lr.transaction_hash || lr.id)) {
+							combinedRecords.push(lr);
+						}
+					}
+					combinedRecords.sort((a, b) => {
+						const dateA = new Date(a.created_at || a.date || 0).getTime();
+						const dateB = new Date(b.created_at || b.date || 0).getTime();
+						return dateB - dateA;
+					});
+				}
+			} catch (err) {
+				console.warn('Error sincronizando transacciones con Firestore:', err);
+			}
 		}
+
+		transactionsStore.set(combinedRecords);
 	} catch (error) {
 		console.error('Error al cargar historial de pagos:', error);
-		transactionsStore.set([]);
 	} finally {
 		loadingTransactions.set(false);
 	}

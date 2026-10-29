@@ -15,6 +15,11 @@
 		}
 	}
 
+	// Carga reactiva cuando se inicializa la cuenta
+	$: if (currentAddress) {
+		reloadHistory();
+	}
+
 	onMount(() => {
 		reloadHistory();
 	});
@@ -24,9 +29,18 @@
 		return `${addr.slice(0, 8)}...${addr.slice(-8)}`;
 	}
 
-	function formatDate(dateStr: string): string {
+	function formatDate(dateVal: any): string {
 		try {
-			const date = new Date(dateStr);
+			if (!dateVal) return 'Fecha no disponible';
+			let date: Date;
+			if (dateVal && typeof dateVal.toDate === 'function') {
+				date = dateVal.toDate();
+			} else if (dateVal && typeof dateVal.seconds === 'number') {
+				date = new Date(dateVal.seconds * 1000);
+			} else {
+				date = new Date(dateVal);
+			}
+			if (isNaN(date.getTime())) return String(dateVal);
 			return new Intl.DateTimeFormat('es-AR', {
 				day: '2-digit',
 				month: 'short',
@@ -35,16 +49,18 @@
 				minute: '2-digit'
 			}).format(date);
 		} catch (e) {
-			return dateStr;
+			return String(dateVal || '');
 		}
 	}
 
 	function getTxDetails(tx: any) {
 		const isCreate = tx.type === 'create_account';
-		const sender = isCreate ? tx.funder : tx.from;
-		const receiver = isCreate ? tx.account : tx.to;
-		const amount = isCreate ? tx.starting_balance : tx.amount;
-		const asset = isCreate ? 'XLM' : (tx.asset_code || 'XLM');
+		const sender = isCreate ? tx.funder : (tx.from || tx.source_account || '');
+		const receiver = isCreate ? tx.account : (tx.to || tx.into || '');
+		const amount = isCreate ? tx.starting_balance : (tx.amount || tx.source_amount || '0');
+		const asset = isCreate 
+			? 'XLM' 
+			: (tx.asset_code || (tx.asset_type === 'native' ? 'XLM' : 'XLM'));
 		const isOutgoing = sender === currentAddress;
 
 		return {
@@ -54,12 +70,12 @@
 			amount: parseFloat(amount || '0'),
 			asset,
 			isOutgoing,
-			date: tx.created_at,
-			hash: tx.transaction_hash
+			date: tx.created_at || tx.date,
+			hash: tx.transaction_hash || tx.id
 		};
 	}
 
-	// Filtrar reactivamente la lista de Horizon
+	// Filtrar reactivamente la lista de transacciones
 	$: filteredTxs = $transactions
 		.map(tx => getTxDetails(tx))
 		.filter(details => {
@@ -73,7 +89,7 @@
 			return true;
 		});
 
-	// Obtener lista de activos únicos en el historial para rellenar el filtro
+	// Obtener lista de activos únicos en el historial para el filtro
 	$: uniqueAssets = Array.from(new Set($transactions.map(tx => {
 		return tx.type === 'create_account' ? 'XLM' : (tx.asset_code || 'XLM');
 	})));
@@ -129,12 +145,12 @@
 		</div>
 	</div>
 
-	<!-- Listado Histórico -->
+	<!-- Listado Histórico de Actividad -->
 	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
-		<h3 class="text-sm font-bold text-slate-300 mb-4 tracking-wide">Registro de Actividad</h3>
+		<h3 class="text-sm font-bold text-slate-300 mb-4 tracking-wide">Actividad de la Cuenta</h3>
 
 		<div class="space-y-3">
-			{#if $loadingTransactions}
+			{#if $loadingTransactions && $transactions.length === 0}
 				{#each Array(4) as _}
 					<div class="w-full h-16 bg-slate-800/40 rounded-xl animate-pulse"></div>
 				{/each}
@@ -216,8 +232,8 @@
 					<svg class="w-12 h-12 text-slate-850 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
 					</svg>
-					<p class="text-xs font-semibold">Sin transacciones registradas</p>
-					<p class="text-[10px] text-slate-600 mt-1">Los movimientos de la Testnet se mostrarán aquí.</p>
+					<p class="text-xs font-semibold">Sin movimientos anteriores</p>
+					<p class="text-[10px] text-slate-600 mt-1">Los movimientos anteriores y transacciones de la red Stellar aparecerán aquí.</p>
 				</div>
 			{/if}
 		</div>

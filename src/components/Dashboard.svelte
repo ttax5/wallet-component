@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { session } from '../stores/session';
 	import { balances, loadingBalances, balancesError, transactions } from '../stores/wallet';
-	import { loadBalances, establishTrustline } from '../services/stellar';
+	import { loadBalances, loadTransactionsHistory, establishTrustline } from '../services/stellar';
 	import type { ViewType } from '../types';
 	import { addNotification } from '../stores/notifications';
 
@@ -68,7 +68,10 @@
 
 	async function reloadData() {
 		if ($session.stellarAccount?.pubKey) {
-			await loadBalances($session.stellarAccount.pubKey);
+			await Promise.allSettled([
+				loadBalances($session.stellarAccount.pubKey),
+				loadTransactionsHistory($session.stellarAccount.pubKey)
+			]);
 		}
 	}
 

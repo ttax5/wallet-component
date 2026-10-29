@@ -42,7 +42,7 @@
 			case 'billing': return 'Facturación (QR)';
 			case 'payment': return 'Enviar Pago';
 			case 'assets': return 'Mis Activos';
-			case 'history': return 'Historial';
+			case 'history': return 'Actividad';
 			case 'settings': return 'Seguridad';
 			default: return 'Comercio';
 		}
