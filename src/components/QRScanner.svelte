@@ -229,7 +229,7 @@
 		<div class="space-y-3.5">
 			<button 
 				on:click={startCamera} 
-				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group"
+				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 			>
 				<div class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 group-hover:scale-105 transition-transform">
 					<!-- Camera Icon -->
@@ -245,8 +245,8 @@
 			</button>
 
 			<button 
-				on:click={() => scannerState = 'file'}
-				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group"
+				on:click={() => scannerState = 'file'} 
+				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group focus:ring-2 focus:ring-purple-400 focus:outline-none"
 			>
 				<div class="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 group-hover:scale-105 transition-transform">
 					<!-- File Icon -->
@@ -261,8 +261,8 @@
 			</button>
 
 			<button 
-				on:click={() => scannerState = 'simulation'}
-				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group"
+				on:click={() => scannerState = 'simulation'} 
+				class="w-full flex items-center justify-center gap-3 p-4 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900 rounded-2xl transition-all group focus:ring-2 focus:ring-cyan-400 focus:outline-none"
 			>
 				<div class="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 group-hover:scale-105 transition-transform">
 					<!-- Terminal/Simulation Icon -->
@@ -310,7 +310,7 @@
 
 			<button 
 				on:click={() => { stopCamera(); scannerState = 'idle'; }} 
-				class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl mt-4 border border-slate-700 transition-colors"
+				class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl mt-4 border border-slate-700 transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 			>
 				Volver Atrás
 			</button>
@@ -318,16 +318,16 @@
 	{:else if scannerState === 'file'}
 		<!-- Drag and Drop Image File -->
 		<div class="space-y-4">
-			<!-- svelte-ignore a11y-interactive-supports-focus -->
-			<div
-				class="w-full aspect-video border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 text-center cursor-pointer transition-colors duration-200
+			<button
+				type="button"
+				class="w-full aspect-video border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 text-center cursor-pointer transition-colors duration-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none
 				{dragActive ? 'border-indigo-500 bg-indigo-500/5' : 'border-slate-800 bg-slate-950/20 hover:border-slate-700'}"
 				on:dragenter={handleDrag}
 				on:dragover={handleDrag}
 				on:dragleave={handleDrag}
 				on:drop={handleDrop}
 				on:click={() => fileInput.click()}
-				role="button"
+				aria-label="Arrastra o haz clic para subir una imagen de código QR"
 			>
 				<input
 					type="file"
@@ -342,11 +342,11 @@
 				</svg>
 				<span class="text-xs font-bold text-slate-300">Arrastra tu imagen QR aquí</span>
 				<span class="text-[10px] text-slate-500 mt-1">O haz clic para explorar tus archivos</span>
-			</div>
+			</button>
 
 			<button 
 				on:click={() => scannerState = 'idle'} 
-				class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+				class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 			>
 				Volver Atrás
 			</button>
@@ -355,11 +355,11 @@
 		<!-- Simulación -->
 		<div class="space-y-4">
 			<div>
-				<label for="sim-qr-data" class="text-slate-400 text-xs font-semibold">Pegar URI de Pago QR</label>
+				<label for="sim-qr-data" class="text-slate-400 text-xs font-semibold cursor-pointer">Pegar URI de Pago QR</label>
 				<input
 					type="text"
 					id="sim-qr-data"
-					class="w-full bg-slate-950 border-slate-800 text-slate-200 text-xs px-3 py-2.5 rounded-xl mt-1.5 font-mono focus:border-indigo-500"
+					class="w-full bg-slate-950 border-slate-800 text-slate-200 text-xs px-3 py-2.5 rounded-xl mt-1.5 font-mono focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 					bind:value={simQrValue}
 					placeholder="paxapos:pay?address=GD..."
 				/>
@@ -368,13 +368,13 @@
 			<div class="flex gap-3">
 				<button 
 					on:click={() => scannerState = 'idle'} 
-					class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+					class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
 					Volver
 				</button>
 				<button 
 					on:click={submitSimulation} 
-					class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white text-xs font-bold rounded-xl transition-all shadow-md"
+					class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white text-xs font-bold rounded-xl transition-all shadow-md focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
 					Decodificar QR
 				</button>

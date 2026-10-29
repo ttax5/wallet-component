@@ -26,19 +26,14 @@
 	function getNotificationIcon(type: AppNotification['type']): string {
 		switch (type) {
 			case 'payment_received':
-				// Arrow Down Credit
 				return 'M19 13l-7 7-7-7m14-6l-7 7-7-7';
 			case 'payment_sent':
-				// Arrow Up Debit
 				return 'M5 11l7-7 7 7M5 19l7-7 7 7';
 			case 'trustline':
-				// Key/Link
 				return 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1';
 			case 'security':
-				// Shield
 				return 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z';
 			case 'error':
-				// Exclamation
 				return 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z';
 		}
 		return '';
@@ -60,6 +55,8 @@
 		return '';
 	}
 </script>
+
+<svelte:window on:keydown={(e) => { if (e.key === 'Escape' && isOpen) isOpen = false; }} />
 
 <!-- TOAST OVERLAY (Esquina Superior Derecha) -->
 {#if $activeToast}
@@ -83,7 +80,8 @@
 		<!-- Botón Cerrar -->
 		<button 
 			on:click={() => activeToast.set(null)} 
-			class="text-slate-400 hover:text-slate-200 transition-colors self-start p-0.5"
+			class="text-slate-400 hover:text-slate-200 transition-colors self-start p-1 rounded focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+			aria-label="Cerrar notificación emergente"
 		>
 			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -94,16 +92,19 @@
 
 <!-- DRAWER LATERAL DE HISTORIAL -->
 {#if isOpen}
-	<!-- Fondo Opaco -->
-	<!-- svelte-ignore a11y-click-events-have-key-events -->
-	<div 
+	<!-- Fondo Opaco Accesible -->
+	<button 
+		type="button"
 		on:click={() => isOpen = false} 
-		class="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 transition-opacity duration-300"
-	></div>
+		aria-label="Cerrar panel de notificaciones"
+		class="fixed inset-0 w-full h-full bg-slate-950/40 backdrop-blur-xs z-40 transition-opacity duration-300 border-none cursor-default"
+	></button>
 
 	<!-- Drawer Container -->
 	<div 
 		class="fixed top-0 right-0 h-full w-full max-w-md bg-slate-900 border-l border-slate-800 z-50 flex flex-col shadow-2xl animate-drawerSlideIn"
+		role="dialog"
+		aria-label="Centro de notificaciones"
 	>
 		<!-- Cabecera -->
 		<div class="p-5 border-b border-slate-800/80 flex items-center justify-between">
@@ -123,20 +124,21 @@
 				{#if $notifications.length > 0}
 					<button 
 						on:click={markAllAsRead} 
-						class="text-xs text-slate-400 hover:text-indigo-400 font-semibold px-2 py-1.5 rounded-lg hover:bg-slate-850 transition-colors"
+						class="text-xs text-slate-400 hover:text-indigo-400 font-semibold px-2 py-1.5 rounded-lg hover:bg-slate-850 transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 					>
 						Marcar leídas
 					</button>
 					<button 
 						on:click={clearAll} 
-						class="text-xs text-slate-400 hover:text-red-400 font-semibold px-2 py-1.5 rounded-lg hover:bg-slate-850 transition-colors"
+						class="text-xs text-slate-400 hover:text-red-400 font-semibold px-2 py-1.5 rounded-lg hover:bg-slate-850 transition-colors focus:ring-2 focus:ring-red-400 focus:outline-none"
 					>
 						Limpiar
 					</button>
 				{/if}
 				<button 
 					on:click={() => isOpen = false} 
-					class="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-850 rounded-lg transition-colors ml-1"
+					class="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-850 rounded-lg transition-colors ml-1 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+					aria-label="Cerrar panel de notificaciones"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -148,13 +150,13 @@
 		<!-- Filtros -->
 		<div class="px-5 py-3 border-b border-slate-800/50 bg-slate-950/20 flex gap-2">
 			<button
-				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'all' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-300'}"
+				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none {filterType === 'all' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-300'}"
 				on:click={() => filterType = 'all'}
 			>
 				Todas
 			</button>
 			<button
-				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'unread' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-300'}"
+				class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none {filterType === 'unread' ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-slate-300'}"
 				on:click={() => filterType = 'unread'}
 			>
 				No Leídas
@@ -165,11 +167,13 @@
 		<div class="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
 			{#if filteredNotifications.length > 0}
 				{#each filteredNotifications as notification (notification.id)}
-					<!-- svelte-ignore a11y-click-events-have-key-events -->
 					<div 
-						class="flex gap-3.5 p-4 rounded-xl border bg-slate-850/40 transition-all duration-200 relative group 
+						tabindex="0"
+						role="button"
+						class="flex gap-3.5 p-4 rounded-xl border bg-slate-850/40 transition-all duration-200 relative group focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer
 						{notification.read ? 'border-slate-800/60 opacity-70' : 'border-slate-700/60 shadow-lg shadow-indigo-600/[0.02]'}"
 						on:click={() => markAsRead(notification.id)}
+						on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { markAsRead(notification.id); } }}
 					>
 						<!-- Punto azul de no leído -->
 						{#if !notification.read}
@@ -195,8 +199,9 @@
 						<!-- Botón borrar individual -->
 						<button 
 							on:click|stopPropagation={() => removeNotification(notification.id)}
-							class="absolute bottom-4 right-4 p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+							class="absolute bottom-4 right-4 p-1.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 focus:ring-2 focus:ring-red-400 focus:outline-none"
 							title="Eliminar notificación"
+							aria-label="Eliminar esta notificación"
 						>
 							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>

@@ -49,6 +49,8 @@
 	}
 </script>
 
+<svelte:window on:keydown={(e) => { if (e.key === 'Escape' && mobileOpen) mobileOpen = false; }} />
+
 <!-- Notificaciones Emergentes Toast siempre cargadas -->
 <NotificationCenter bind:isOpen={notificationCenterOpen} />
 
@@ -63,15 +65,15 @@
 		<!-- Sidebar Lateral -->
 		<Sidebar bind:activeTab bind:mobileOpen />
 
-		<!-- Backdrop overlay para cerrar sidebar móvil -->
+		<!-- Backdrop overlay para cerrar sidebar móvil accesible -->
 		{#if mobileOpen}
-			<!-- svelte-ignore a11y-click-events-have-key-events -->
-			<!-- svelte-ignore a11y-no-static-element-interactions -->
-			<div 
+			<button 
+				type="button"
 				on:click={() => mobileOpen = false} 
 				transition:fade={{ duration: 200 }}
-				class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-30 md:hidden"
-			></div>
+				class="fixed inset-0 w-full h-full bg-slate-950/60 backdrop-blur-sm z-30 md:hidden border-none cursor-default"
+				aria-label="Cerrar menú lateral"
+			></button>
 		{/if}
 
 		<!-- Contenido Principal -->
@@ -83,7 +85,7 @@
 					<!-- Botón Hamburguesa Móvil -->
 					<button
 						on:click={() => mobileOpen = true}
-						class="p-2 -ml-2 mr-1 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-150 transition-all md:hidden flex items-center justify-center"
+						class="p-2 -ml-2 mr-1 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-150 transition-all md:hidden flex items-center justify-center focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 						aria-label="Abrir menú"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,7 +103,7 @@
 					<!-- Campana de Notificaciones con Badge -->
 					<button
 						on:click={() => notificationCenterOpen = !notificationCenterOpen}
-						class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-150 relative transition-all"
+						class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-150 relative transition-all focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 						aria-label="Abrir centro de notificaciones"
 					>
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +124,7 @@
 						{#if $session.googleUser?.picture}
 							<img
 								src={$session.googleUser.picture}
-								alt="Google avatar"
+								alt="Avatar de {$session.googleUser.name}"
 								class="w-8 h-8 rounded-full ring-2 ring-indigo-500/20 object-cover"
 							/>
 						{:else}
@@ -138,7 +140,7 @@
 			</header>
 
 			<!-- Contenedor de Vistas Intercambiables -->
-			<main class="flex-1 p-6 md:p-8 max-w-6xl w-full m-auto">
+			<main class="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full m-auto">
 				{#if activeTab === 'dashboard'}
 					<Dashboard bind:activeTab />
 				{:else if activeTab === 'billing'}

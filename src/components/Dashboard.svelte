@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { session } from '../stores/session';
-	import { balances, loadingBalances, transactions } from '../stores/wallet';
+	import { balances, loadingBalances, balancesError, transactions } from '../stores/wallet';
 	import { loadBalances, establishTrustline } from '../services/stellar';
 	import type { ViewType } from '../types';
 	import { addNotification } from '../stores/notifications';
@@ -14,6 +14,11 @@
 	let activeTrustlines = 0;
 	let totalTrustlines = 2; // USDC y USDT son los configurados por defecto
 	let trustlinePercent = 0;
+
+	// Balances individuales
+	$: xlmBalance = $balances.find(b => b.code === 'XLM')?.balance ?? 0;
+	$: usdcBalance = $balances.find(b => b.code === 'USDC')?.balance ?? 0;
+	$: hasAnyBalance = $balances.some(b => b.balance > 0);
 
 	// Recalcular métricas cuando cambien balances o transacciones
 	$: {
@@ -157,8 +162,9 @@
 				Wallet: <span class="bg-slate-950 px-2 py-0.5 rounded text-indigo-400 font-semibold select-all">{formatKey($session.stellarAccount.pubKey)}</span>
 				<button 
 					on:click={() => copyToClipboard($session.stellarAccount.pubKey, 'Dirección')}
-					class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors"
+					class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 					title="Copiar dirección"
+					aria-label="Copiar dirección pública de Stellar"
 				>
 					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
@@ -171,7 +177,8 @@
 			<button 
 				on:click={reloadData} 
 				disabled={$loadingBalances}
-				class="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold rounded-xl transition-all border border-slate-700 disabled:opacity-50 flex items-center gap-1.5"
+				class="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold rounded-xl transition-all border border-slate-700 disabled:opacity-50 flex items-center gap-1.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+				aria-label="Actualizar balances desde Stellar"
 			>
 				{#if $loadingBalances}
 					<div class="w-3.5 h-3.5 border-2 border-slate-400 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -185,7 +192,7 @@
 			</button>
 			<button 
 				on:click={() => activeTab = 'billing'} 
-				class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5"
+				class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 			>
 				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -197,22 +204,82 @@
 
 	<!-- Grid de Balances y Métricas -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- Card de Balance General Consolidad -->
-		<div class="lg:col-span-1 bg-gradient-to-br from-indigo-900/60 to-purple-950/60 p-6 rounded-3xl border border-indigo-800/40 relative overflow-hidden flex flex-col justify-between min-h-[200px] shadow-xl shadow-indigo-950/20 backdrop-blur-md">
+		<!-- Card de Balance General Consolidado y por Moneda -->
+		<div class="lg:col-span-1 bg-gradient-to-br from-indigo-900/60 to-purple-950/60 p-6 rounded-3xl border border-indigo-800/40 relative overflow-hidden flex flex-col justify-between min-h-[220px] shadow-xl shadow-indigo-950/20 backdrop-blur-md">
 			<div class="absolute -top-12 -right-12 w-36 h-36 bg-cyan-400/10 rounded-full blur-2xl pointer-events-none"></div>
 			<div>
-				<span class="text-xs font-bold text-indigo-300 uppercase tracking-widest">Balance Consolidado</span>
-				<h2 class="text-4xl font-black text-white tracking-tight mt-2">
+				<div class="flex items-center justify-between">
+					<span class="text-xs font-bold text-indigo-300 uppercase tracking-widest">Balance Consolidado</span>
 					{#if $loadingBalances}
-						<div class="h-10 w-44 bg-white/10 rounded animate-pulse"></div>
-					{:else}
-						{formatCurrency(totalUsd)}
+						<span class="text-[10px] font-semibold text-indigo-300 flex items-center gap-1">
+							<span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+							Cargando...
+						</span>
+					{:else if $balancesError}
+						<span class="text-[10px] font-bold text-rose-400 flex items-center gap-1">
+							Error de red
+						</span>
+					{:else if !hasAnyBalance}
+						<span class="text-[10px] font-bold text-amber-400/90 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+							Saldo en cero
+						</span>
 					{/if}
-				</h2>
-				<span class="text-[10px] text-indigo-200 mt-1 block">Suma estimada de XLM + USDC + USDT</span>
+				</div>
+
+				{#if $loadingBalances}
+					<div class="mt-3 space-y-2">
+						<div class="h-9 w-40 bg-white/10 rounded-xl animate-pulse"></div>
+						<p class="text-xs text-indigo-300 animate-pulse">Cargando saldos desde Stellar...</p>
+					</div>
+				{:else if $balancesError}
+					<div class="mt-3 p-3 bg-rose-950/50 border border-rose-500/30 rounded-xl">
+						<div class="flex items-start gap-2">
+							<svg class="w-4 h-4 text-rose-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+							</svg>
+							<div class="flex-1">
+								<p class="text-xs text-rose-200 font-semibold leading-tight">{$balancesError}</p>
+								<button 
+									on:click={reloadData}
+									class="mt-2 px-2.5 py-1 text-[10px] font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-lg border border-rose-500/30 transition-colors focus:ring-2 focus:ring-rose-400"
+								>
+									Reintentar
+								</button>
+							</div>
+						</div>
+					</div>
+				{:else}
+					<h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight mt-2">
+						{formatCurrency(totalUsd)}
+					</h2>
+
+					<!-- Desglose explícito de saldos por moneda (XLM y USDC) -->
+					<div class="mt-3 pt-3 border-t border-indigo-800/30 grid grid-cols-2 gap-2 text-xs">
+						<div class="bg-slate-950/40 p-2.5 rounded-xl border border-indigo-800/30">
+							<span class="text-[10px] font-bold text-slate-400 block uppercase">Saldo XLM</span>
+							<span class="font-extrabold font-mono text-white text-sm">
+								{xlmBalance.toFixed(2)}
+							</span>
+							<span class="text-[9px] text-slate-400 ml-0.5">XLM</span>
+							{#if xlmBalance === 0}
+								<span class="block text-[9px] text-amber-400/80 font-medium">Saldo en cero</span>
+							{/if}
+						</div>
+						<div class="bg-slate-950/40 p-2.5 rounded-xl border border-indigo-800/30">
+							<span class="text-[10px] font-bold text-slate-400 block uppercase">Saldo USDC</span>
+							<span class="font-extrabold font-mono text-white text-sm">
+								{usdcBalance.toFixed(2)}
+							</span>
+							<span class="text-[9px] text-slate-400 ml-0.5">USDC</span>
+							{#if usdcBalance === 0}
+								<span class="block text-[9px] text-amber-400/80 font-medium">Saldo en cero</span>
+							{/if}
+						</div>
+					</div>
+				{/if}
 			</div>
 			
-			<div class="flex items-center gap-3 pt-6 border-t border-indigo-800/30 mt-4">
+			<div class="flex items-center gap-3 pt-4 border-t border-indigo-800/30 mt-4">
 				<div class="flex-1">
 					<div class="flex justify-between text-[10px] font-bold text-indigo-300">
 						<span>Habilitación Stellar</span>
@@ -307,8 +374,8 @@
 					fill="none" 
 					stroke="url(#lineGrad)" 
 					stroke-width="3" 
-					points={svgPoints}
-					stroke-linecap="round"
+					points={svgPoints} 
+					stroke-linecap="round" 
 					stroke-linejoin="round"
 				/>
 				
@@ -330,14 +397,51 @@
 
 	<!-- Listado de Activos y Trustlines -->
 	<div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
-		<h3 class="text-sm font-bold text-slate-300 mb-4 tracking-wide">Desglose de Activos</h3>
+		<div class="flex items-center justify-between mb-4">
+			<h3 class="text-sm font-bold text-slate-300 tracking-wide">Desglose de Activos</h3>
+			{#if $balancesError}
+				<span class="text-xs text-rose-400 font-semibold flex items-center gap-1">
+					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+					</svg>
+					Error al sincronizar saldos
+				</span>
+			{/if}
+		</div>
 		
 		<div class="flex flex-col gap-3">
-			{#if $balances.length > 0}
+			{#if $loadingBalances}
+				<div class="p-6 text-center bg-slate-950/30 rounded-xl border border-slate-850">
+					<div class="w-7 h-7 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+					<p class="text-xs text-slate-300 font-semibold">Cargando saldos de activos...</p>
+					<span class="text-[10px] text-slate-500">Consultando Horizon Testnet</span>
+				</div>
+				<!-- Skeleton Loader -->
+				{#each Array(2) as _}
+					<div class="w-full h-16 bg-slate-800/40 rounded-xl animate-pulse"></div>
+				{/each}
+			{:else if $balancesError}
+				<div class="p-6 text-center bg-rose-950/20 border border-rose-500/20 rounded-xl">
+					<svg class="w-8 h-8 text-rose-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+					</svg>
+					<p class="text-xs text-rose-200 font-semibold mb-1">{$balancesError}</p>
+					<p class="text-[10px] text-slate-400 mb-3">No fue posible obtener los datos de los saldos desde la red.</p>
+					<button
+						on:click={reloadData}
+						class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-md inline-flex items-center gap-1.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18"></path>
+						</svg>
+						Reintentar conexión
+					</button>
+				</div>
+			{:else if $balances.length > 0}
 				{#each $balances as item}
 					<div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-950/40 border border-slate-850 rounded-xl gap-3">
 						<div class="flex items-center gap-3">
-							<img src={item.logo} alt={item.code} class="w-8 h-8 rounded-full bg-slate-900" />
+							<img src={item.logo} alt={item.code} class="w-8 h-8 rounded-full bg-slate-900 object-contain" />
 							<div>
 								<h4 class="text-xs font-bold text-slate-200">{item.name}</h4>
 								<span class="text-[10px] text-slate-500 uppercase tracking-wider font-mono">{item.code}</span>
@@ -347,12 +451,21 @@
 						<div class="flex items-center justify-between sm:justify-end gap-6">
 							<!-- Balances -->
 							<div class="text-right">
-								<h5 class="text-sm font-extrabold text-slate-250 font-mono">
-									{item.balance.toFixed(4)} <span class="text-xs text-slate-500 font-semibold">{item.code}</span>
-								</h5>
-								<span class="text-[10px] text-slate-500 font-bold block mt-0.5">
-									≈ {formatCurrency(item.usdValue)}
-								</span>
+								{#if item.balance === 0}
+									<h5 class="text-sm font-extrabold text-slate-400 font-mono">
+										0.0000 <span class="text-xs text-slate-500 font-semibold">{item.code}</span>
+									</h5>
+									<span class="text-[10px] text-amber-400/80 font-bold block mt-0.5">
+										Saldo en cero
+									</span>
+								{:else}
+									<h5 class="text-sm font-extrabold text-slate-200 font-mono">
+										{item.balance.toFixed(4)} <span class="text-xs text-indigo-400 font-semibold">{item.code}</span>
+									</h5>
+									<span class="text-[10px] text-slate-500 font-bold block mt-0.5">
+										≈ {formatCurrency(item.usdValue)}
+									</span>
+								{/if}
 							</div>
 
 							<!-- Indicador Trustline -->
@@ -374,7 +487,7 @@
 										<button
 											on:click={() => handleEnableTrustline(item.code, item.issuer)}
 											disabled={loadingActionId === item.code}
-											class="px-2.5 py-1 text-[9px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors disabled:opacity-50"
+											class="px-2.5 py-1 text-[9px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors disabled:opacity-50 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 										>
 											{#if loadingActionId === item.code}
 												Habilitando...
@@ -389,10 +502,9 @@
 					</div>
 				{/each}
 			{:else}
-				<!-- Skeleton Loader -->
-				{#each Array(3) as _}
-					<div class="w-full h-16 bg-slate-800/40 rounded-xl animate-pulse"></div>
-				{/each}
+				<div class="p-6 text-center bg-slate-950/20 border border-slate-850 rounded-xl text-slate-400 text-xs">
+					Saldo en cero. No hay activos configurados en esta cuenta.
+				</div>
 			{/if}
 		</div>
 	</div>

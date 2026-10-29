@@ -44,4 +44,9 @@
 	});
 </script>
 
-<img src={image} title={value} alt={value} class={className} />
+<img 
+	src={image} 
+	title={value} 
+	alt="Código QR de cobro: {value}" 
+	class="w-full max-w-[190px] sm:max-w-[240px] h-auto object-contain block mx-auto {className}" 
+/>

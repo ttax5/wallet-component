@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { session } from '../stores/session';
-	import { balances } from '../stores/wallet';
+	import { balances, loadingBalances, balancesError } from '../stores/wallet';
 	import { SUPPORTED_ASSETS, createPayment } from '../services/stellar';
 	import { addNotification } from '../stores/notifications';
 	import QRScanner from './QRScanner.svelte';
@@ -9,6 +9,7 @@
 	let amount: number;
 	let selectedAssetCode = 'XLM';
 	let memoText = '';
+	let assetSelect: HTMLSelectElement;
 	
 	let openScanner = false;
 	let txState: 'idle' | 'preparing' | 'submitting' | 'success' | 'error' = 'idle';
@@ -92,7 +93,7 @@
 	}
 </script>
 
-<div class="max-w-xl m-auto bg-slate-900/40 border border-slate-800 backdrop-blur-md p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-fadeIn">
+<div class="max-w-xl w-full m-auto bg-slate-900/40 border border-slate-800 backdrop-blur-md p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl relative overflow-hidden animate-fadeIn">
 	<div class="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
 	{#if openScanner}
@@ -101,7 +102,8 @@
 				<h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Escanear QR de Cobro</h3>
 				<button 
 					on:click={() => openScanner = false}
-					class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold"
+					class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+					aria-label="Cerrar escáner"
 				>
 					Cancelar
 				</button>
@@ -117,7 +119,8 @@
 				</div>
 				<button
 					on:click={() => openScanner = true}
-					class="px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+					class="px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+					aria-label="Escanear código QR de cobro"
 				>
 					<!-- Scan Icon -->
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,11 +133,11 @@
 			<div class="space-y-5">
 				<!-- Destinatario -->
 				<div>
-					<label for="pay-to" class="text-slate-400 text-xs font-semibold">Dirección de Destino (Public Key G...)</label>
+					<label for="pay-to" class="text-slate-400 text-xs font-semibold cursor-pointer">Dirección de Destino (Public Key G...)</label>
 					<input
 						type="text"
 						id="pay-to"
-						class="w-full bg-slate-950 border-slate-800 text-slate-200 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 font-mono text-xs"
+						class="w-full bg-slate-950 border-slate-800 text-slate-200 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 						bind:value={recipient}
 						placeholder="GD..."
 					/>
@@ -144,11 +147,11 @@
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<!-- Monto -->
 					<div class="sm:col-span-2">
-						<label for="pay-amount" class="text-slate-400 text-xs font-semibold">Monto</label>
+						<label for="pay-amount" class="text-slate-400 text-xs font-semibold cursor-pointer">Monto</label>
 						<input
 							type="number"
 							id="pay-amount"
-							class="w-full bg-slate-950 border-slate-800 text-slate-150 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-base font-bold font-mono"
+							class="w-full bg-slate-950 border-slate-800 text-slate-150 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-base font-bold font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 							bind:value={amount}
 							placeholder="0.00"
 							min="0"
@@ -157,10 +160,16 @@
 					
 					<!-- Token -->
 					<div>
-						<label for="pay-asset" class="text-slate-400 text-xs font-semibold">Activo</label>
+						<label
+							for="pay-asset"
+							class="text-slate-400 text-xs font-semibold cursor-pointer"
+						>
+							Activo
+						</label>
 						<select
+							bind:this={assetSelect}
 							id="pay-asset"
-							class="w-full bg-slate-950 border border-slate-800 text-slate-350 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 outline-none text-sm font-semibold"
+							class="w-full bg-slate-950 border border-slate-800 text-slate-350 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 outline-none text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
 							bind:value={selectedAssetCode}
 						>
 							{#each SUPPORTED_ASSETS as sa}
@@ -170,19 +179,37 @@
 					</div>
 				</div>
 
-				<!-- Visualización de Saldo Disponible -->
+				<!-- Visualización de Saldo Disponible con estados diferenciados -->
 				<div class="p-3 bg-slate-950/40 border border-slate-850 rounded-xl flex items-center justify-between text-xs font-semibold">
 					<span class="text-slate-500">Saldo Disponible:</span>
-					<span class="text-indigo-400 font-mono">{currentAssetBalance.toFixed(4)} {selectedAssetCode}</span>
+					{#if $loadingBalances}
+						<span class="text-slate-400 font-mono flex items-center gap-1.5">
+							<span class="w-2.5 h-2.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></span>
+							Cargando saldo...
+						</span>
+					{:else if $balancesError}
+						<span class="text-rose-400 font-mono text-[11px] flex items-center gap-1">
+							<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+							Error al obtener saldo
+						</span>
+					{:else if currentAssetBalance === 0}
+						<span class="text-amber-400/90 font-mono font-bold">
+							0.0000 {selectedAssetCode} (Sin saldo)
+						</span>
+					{:else}
+						<span class="text-indigo-400 font-mono font-bold">
+							{currentAssetBalance.toFixed(4)} {selectedAssetCode}
+						</span>
+					{/if}
 				</div>
 
 				<!-- Memo -->
 				<div>
-					<label for="pay-memo" class="text-slate-400 text-xs font-semibold">Memo / Mensaje de Texto (Opcional)</label>
+					<label for="pay-memo" class="text-slate-400 text-xs font-semibold cursor-pointer">Memo / Mensaje de Texto (Opcional)</label>
 					<input
 						type="text"
 						id="pay-memo"
-						class="w-full bg-slate-950 border-slate-800 text-slate-200 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-xs font-semibold"
+						class="w-full bg-slate-950 border-slate-800 text-slate-200 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 						bind:value={memoText}
 						placeholder="Ej. Reembolso, Pago Factura"
 						maxlength="28"
@@ -192,7 +219,7 @@
 				<button
 					on:click={executeTransfer}
 					disabled={!recipient || !amount || amount <= 0}
-					class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-4"
+					class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-4 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
 					Confirmar y Enviar Fondos
 				</button>
@@ -237,7 +264,7 @@
 							href="https://stellar.expert/explorer/testnet/tx/{successHash}"
 							target="_blank"
 							rel="noreferrer"
-							class="text-indigo-400 hover:text-indigo-300 font-bold font-sans flex items-center gap-1 transition-all"
+							class="text-indigo-400 hover:text-indigo-300 font-bold font-sans flex items-center gap-1 transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none rounded"
 						>
 							Ver en Stellar.expert
 							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +277,7 @@
 
 			<button
 				on:click={resetState}
-				class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md mt-6"
+				class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md mt-6 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 			>
 				Hacer Otro Pago
 			</button>
@@ -274,13 +301,13 @@
 			<div class="w-full flex gap-3 mt-6">
 				<button 
 					on:click={() => txState = 'idle'}
-					class="flex-1 py-3 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+					class="flex-1 py-3 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
 					Modificar Datos
 				</button>
 				<button 
 					on:click={resetState}
-					class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-colors"
+					class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
 					Volver a Empezar
 				</button>
@@ -298,6 +325,6 @@
 	}
 	select:focus {
 		border-color: var(--accent-indigo) !important;
-		box-shadow: 0 0 0 3px var(--glow-color) !important;
+		box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25) !important;
 	}
 </style>

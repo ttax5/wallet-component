@@ -3,7 +3,7 @@ import { Asset, Networks, Operation } from '@stellar/stellar-sdk';
 import { stellarNetwork } from '../stellar_account';
 import type { AssetBalance, StellarAccount, PaymentDone } from '../types';
 import { addNotification } from '../stores/notifications';
-import { balances as balancesStore, loadingBalances, transactions as transactionsStore, loadingTransactions } from '../stores/wallet';
+import { balances as balancesStore, loadingBalances, balancesError, transactions as transactionsStore, loadingTransactions } from '../stores/wallet';
 import { db, auth } from './firebase';
 import { saveTransactionRecord, fetchUserTransactions } from './firestore';
 
@@ -103,9 +103,11 @@ export async function fundWithFaucet(userPubKey: string, assetCode: string, asse
 export async function loadBalances(address: string) {
 	if (!address || address.length !== 56) {
 		balancesStore.set([]);
+		balancesError.set('');
 		return;
 	}
 	loadingBalances.set(true);
+	balancesError.set('');
 	try {
 		const accountInfo = await server.accounts().accountId(address).call();
 		const horizonBalances = accountInfo.balances;
@@ -116,11 +118,13 @@ export async function loadBalances(address: string) {
 					return hb.asset_type === 'native';
 				} else {
 					const b = hb as { asset_code?: string; asset_issuer?: string };
-					return b.asset_code === supported.code && b.asset_issuer === supported.issuer;
+					// Busca por código y emisor, o si es USDC/USDT por código para capturar cualquier emisor válido
+					return b.asset_code === supported.code && (!supported.issuer || b.asset_issuer === supported.issuer || supported.code === 'USDC' || supported.code === 'USDT');
 				}
 			});
 
-			const balanceVal = found ? parseFloat(found.balance) : 0;
+			const foundToken = found as { asset_issuer?: string; balance?: string } | undefined;
+			const balanceVal = foundToken?.balance ? parseFloat(foundToken.balance) : 0;
 			const rate = supported.code === 'XLM' ? 0.12 : 1.0;
 			const usdValue = balanceVal * rate;
 
@@ -128,7 +132,7 @@ export async function loadBalances(address: string) {
 				code: supported.code,
 				name: supported.name,
 				logo: supported.logo,
-				issuer: supported.issuer,
+				issuer: foundToken?.asset_issuer || supported.issuer,
 				balance: balanceVal,
 				usdValue: usdValue,
 				hasTrustline: found ? true : false
@@ -138,8 +142,8 @@ export async function loadBalances(address: string) {
 		horizonBalances.forEach(hb => {
 			if (hb.asset_type === 'native') return;
 			const b = hb as { asset_code?: string; asset_issuer?: string; balance: string };
-			const isSupported = SUPPORTED_ASSETS.some(sa => sa.code === b.asset_code && sa.issuer === b.asset_issuer);
-			if (!isSupported) {
+			const isAlreadyIncluded = activeBalances.some(ab => ab.code === b.asset_code);
+			if (!isAlreadyIncluded) {
 				const balanceVal = parseFloat(b.balance);
 				activeBalances.push({
 					code: b.asset_code || 'TOKEN',
@@ -154,6 +158,7 @@ export async function loadBalances(address: string) {
 		});
 
 		balancesStore.set(activeBalances);
+		balancesError.set('');
 	} catch (error: any) {
 		console.error('Error al cargar balances:', error);
 		if (error.response && error.response.status === 404) {
@@ -167,8 +172,13 @@ export async function loadBalances(address: string) {
 				hasTrustline: supported.code === 'XLM'
 			}));
 			balancesStore.set(unactivatedBalances);
+			balancesError.set('');
 		} else {
-			addNotification('error', 'Error de Red', 'No se pudieron leer los balances desde Horizon.');
+			const errorMsg = (typeof navigator !== 'undefined' && !navigator.onLine)
+				? 'Sin conexión a internet. No se pudieron obtener los saldos.'
+				: 'Error al conectar con la red Stellar. Revisa tu conexión a internet.';
+			balancesError.set(errorMsg);
+			addNotification('error', 'Error de Red', errorMsg);
 		}
 	} finally {
 		loadingBalances.set(false);
@@ -453,4 +463,3 @@ export async function crearYFondearWalletTestnet() {
 		secretKey,
 	};
 }
-

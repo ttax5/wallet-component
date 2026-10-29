@@ -84,19 +84,19 @@
 	<div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/40 p-5 rounded-2xl border border-slate-800 backdrop-blur-md">
 		<div class="flex flex-wrap items-center gap-2">
 			<button
-				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'all' ? 'bg-slate-800 text-indigo-400 border border-indigo-500/10' : 'text-slate-400 hover:text-slate-200'}"
+				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none {filterType === 'all' ? 'bg-slate-800 text-indigo-400 border border-indigo-500/10' : 'text-slate-400 hover:text-slate-200'}"
 				on:click={() => filterType = 'all'}
 			>
 				Todos
 			</button>
 			<button
-				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'credit' ? 'bg-slate-800 text-emerald-400 border border-emerald-500/10' : 'text-slate-400 hover:text-slate-200'}"
+				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:ring-2 focus:ring-emerald-400 focus:outline-none {filterType === 'credit' ? 'bg-slate-800 text-emerald-400 border border-emerald-500/10' : 'text-slate-400 hover:text-slate-200'}"
 				on:click={() => filterType = 'credit'}
 			>
 				Ingresos
 			</button>
 			<button
-				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors {filterType === 'debit' ? 'bg-slate-800 text-rose-400 border border-rose-500/10' : 'text-slate-400 hover:text-slate-200'}"
+				class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors focus:ring-2 focus:ring-rose-400 focus:outline-none {filterType === 'debit' ? 'bg-slate-800 text-rose-400 border border-rose-500/10' : 'text-slate-400 hover:text-slate-200'}"
 				on:click={() => filterType = 'debit'}
 			>
 				Egresos
@@ -105,8 +105,9 @@
 
 		<div class="flex items-center gap-2 w-full sm:w-auto">
 			<select
-				class="bg-slate-950 border border-slate-800 text-slate-350 px-3.5 py-1.5 rounded-lg text-xs outline-none focus:border-indigo-500 w-full sm:w-40 font-semibold"
+				class="bg-slate-950 border border-slate-800 text-slate-350 px-3.5 py-1.5 rounded-lg text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 w-full sm:w-40 font-semibold"
 				bind:value={filterAsset}
+				aria-label="Filtrar por criptoactivo"
 			>
 				<option value="all">Cualquier Activo</option>
 				{#each uniqueAssets as asset}
@@ -115,10 +116,11 @@
 			</select>
 			
 			<button 
-				on:click={reloadHistory}
+				on:click={reloadHistory} 
 				disabled={$loadingTransactions}
-				class="p-2 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-slate-100 rounded-lg border border-slate-700 transition-colors disabled:opacity-50 shrink-0"
+				class="p-2 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-slate-100 rounded-lg border border-slate-700 transition-colors disabled:opacity-50 shrink-0 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				title="Refrescar historial"
+				aria-label="Refrescar historial de transacciones"
 			>
 				<svg class="w-4 h-4 {$loadingTransactions ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18"></path>
@@ -197,7 +199,7 @@
 									href="https://stellar.expert/explorer/testnet/tx/{details.hash}"
 									target="_blank"
 									rel="noreferrer"
-									class="inline-flex items-center gap-0.5 text-[9px] text-slate-500 hover:text-indigo-400 font-bold border border-slate-800 bg-slate-900/40 px-2 py-0.5 rounded transition-all"
+									class="inline-flex items-center gap-0.5 text-[9px] text-slate-500 hover:text-indigo-400 font-bold border border-slate-800 bg-slate-900/40 px-2 py-0.5 rounded transition-all focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 								>
 									Explorer
 									<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

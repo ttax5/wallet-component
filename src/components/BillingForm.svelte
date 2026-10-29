@@ -12,6 +12,7 @@
 	let orderState: 'input' | 'waiting' | 'success' = 'input';
 	let isSimulating = false;
 	let enablingTrustline = false;
+	let assetSelect: HTMLSelectElement;
 
 	// Verificar si el comercio tiene habilitado el activo seleccionado
 	$: selectedAsset = SUPPORTED_ASSETS.find(a => a.code === selectedAssetCode);
@@ -68,8 +69,6 @@
 		isSimulating = true;
 		addNotification('security', 'Simulador Cliente', 'Creando transacción Stellar del cliente...');
 		
-		// Generar un pagador de prueba (Usamos stellarAccount2 como cliente de pruebas)
-		// Si es el mismo que el del comercio, usaremos las llaves estáticas 2
 		const clientAccount = {
 			pubKey: 'GAMWGOJMSHBEQXO2SFI2YEDCH6FLC56XB5GKWC6JHTXLI5B4EJZGBVBL',
 			privKey: 'SDDF5OKB6E6A3DZB3ZWRKUZ2PQ4KDNLEX2Q2RDFPPRXR3HNJNP4N3SCB'
@@ -109,7 +108,7 @@
 	}
 </script>
 
-<div class="max-w-xl m-auto bg-slate-900/40 border border-slate-800 backdrop-blur-md p-8 rounded-3xl shadow-2xl relative overflow-hidden animate-fadeIn">
+<div class="max-w-xl w-full m-auto bg-slate-900/40 border border-slate-800 backdrop-blur-md p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl relative overflow-hidden animate-fadeIn">
 	<div class="absolute -top-12 -left-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
 	{#if orderState === 'input'}
@@ -120,11 +119,11 @@
 			<div class="space-y-5">
 				<!-- Monto -->
 				<div>
-					<label for="bill-amount" class="text-slate-400 text-xs font-semibold">Monto a Cobrar</label>
+					<label for="bill-amount" class="text-slate-400 text-xs font-semibold cursor-pointer">Monto a Cobrar</label>
 					<input
 						type="number"
 						id="bill-amount"
-						class="w-full bg-slate-950 border-slate-800 text-slate-150 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-lg font-bold"
+						class="w-full bg-slate-950 border-slate-800 text-slate-150 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-lg font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 						bind:value={amount}
 						placeholder="0.00"
 						min="0"
@@ -133,10 +132,16 @@
 
 				<!-- Activo -->
 				<div>
-					<label for="bill-asset" class="text-slate-400 text-xs font-semibold">Seleccionar Criptomoneda</label>
+					<label
+						for="bill-asset"
+						class="text-slate-400 text-xs font-semibold cursor-pointer"
+					>
+						Seleccionar Criptomoneda
+					</label>
 					<select
+						bind:this={assetSelect}
 						id="bill-asset"
-						class="w-full bg-slate-950 border border-slate-800 text-slate-350 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 outline-none transition-colors"
+						class="w-full bg-slate-950 border border-slate-800 text-slate-350 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 outline-none transition-colors cursor-pointer focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 						bind:value={selectedAssetCode}
 					>
 						{#each SUPPORTED_ASSETS as sa}
@@ -147,11 +152,11 @@
 
 				<!-- Memo -->
 				<div>
-					<label for="bill-memo" class="text-slate-400 text-xs font-semibold">Concepto / Memo (Texto Opcional)</label>
+					<label for="bill-memo" class="text-slate-400 text-xs font-semibold cursor-pointer">Concepto / Memo (Texto Opcional)</label>
 					<input
 						type="text"
 						id="bill-memo"
-						class="w-full bg-slate-950 border-slate-800 text-slate-200 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-sm font-semibold"
+						class="w-full bg-slate-950 border-slate-800 text-slate-200 px-4 py-3 rounded-xl mt-1.5 focus:border-indigo-500 text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
 						bind:value={memoText}
 						placeholder="Ej. Mesa 4, Pedido #12"
 						maxlength="28"
@@ -175,7 +180,7 @@
 						<button 
 							on:click={handleEnableTrustline}
 							disabled={enablingTrustline}
-							class="w-full py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-xl border border-red-500/30 transition-colors disabled:opacity-50"
+							class="w-full py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-xl border border-red-500/30 transition-colors disabled:opacity-50 focus:ring-2 focus:ring-red-400 focus:outline-none"
 						>
 							{#if enablingTrustline}
 								Estableciendo confianza...
@@ -190,7 +195,7 @@
 				<button
 					on:click={generateBilling}
 					disabled={!hasTrustline || !amount || amount <= 0}
-					class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-4"
+					class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed mt-4 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
 					Generar Código QR de Cobro
 				</button>
@@ -201,9 +206,9 @@
 			<h2 class="text-xl font-black text-slate-100 tracking-tight mb-1">Esperando Pago</h2>
 			<p class="text-xs text-slate-400 mb-6">Muestra el código QR al cliente para realizar el pago.</p>
 
-			<!-- QR Code display -->
-			<div class="p-6 bg-white rounded-3xl shadow-xl inline-block border border-slate-200 hover:scale-[1.01] transition-transform duration-300">
-				<WalletQR value={generatedQrValue} size="240" />
+			<!-- QR Code display responsive -->
+			<div class="p-3 sm:p-6 bg-white rounded-2xl sm:rounded-3xl shadow-xl inline-block max-w-full border border-slate-200 hover:scale-[1.01] transition-transform duration-300">
+				<WalletQR value={generatedQrValue} size="220" />
 			</div>
 
 			<!-- Detalle de la Orden -->
@@ -238,14 +243,14 @@
 			<div class="w-full flex gap-3 mt-6">
 				<button 
 					on:click={resetForm}
-					class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-250 text-xs font-bold rounded-xl transition-all border border-slate-700"
+					class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-250 text-xs font-bold rounded-xl transition-all border border-slate-700 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 				>
 					Cancelar
 				</button>
 				<button
 					on:click={simulateClientPayment}
 					disabled={isSimulating}
-					class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+					class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 focus:ring-2 focus:ring-emerald-400 focus:outline-none"
 				>
 					{#if isSimulating}
 						<div class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -290,7 +295,7 @@
 
 			<button
 				on:click={resetForm}
-				class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md mt-6"
+				class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-xl transition-all shadow-md mt-6 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
 			>
 				Generar Nuevo Cobro
 			</button>
@@ -307,6 +312,6 @@
 	}
 	select:focus {
 		border-color: var(--accent-indigo) !important;
-		box-shadow: 0 0 0 3px var(--glow-color) !important;
+		box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25) !important;
 	}
 </style>
