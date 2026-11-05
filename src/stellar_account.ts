@@ -1,11 +1,16 @@
+// Cuentas demo de Stellar Testnet.
+// Las claves privadas NO se versionan: se cargan desde .env (ignorado por git).
+// Ver .env.example para las variables esperadas.
+const env = import.meta.env;
+
 export const stellarAccount1 = {
-	pubKey: 'GAISBLYYRGUC5E4BOLOJSEGTJCRAMFEMUX6JK42NMVR3UAL567GDD7ML',
-	privKey: 'SCATEAOCBWHTOGVS6TWC6HE36YX5XCHOETNWL3OISKESUVL3OR7ZQMPT',
+	pubKey: env.VITE_DEMO_ACCOUNT_1_PUBLIC_KEY || '',
+	privKey: env.VITE_DEMO_ACCOUNT_1_PRIVATE_KEY || ''
 };
+
 export const stellarAccount2 = {
-	pubKey: 'GAMWGOJMSHBEQXO2SFI2YEDCH6FLC56XB5GKWC6JHTXLI5B4EJZGBVBL',
-	privKey: 'SDDF5OKB6E6A3DZB3ZWRKUZ2PQ4KDNLEX2Q2RDFPPRXR3HNJNP4N3SCB',
+	pubKey: env.VITE_DEMO_ACCOUNT_2_PUBLIC_KEY || '',
+	privKey: env.VITE_DEMO_ACCOUNT_2_PRIVATE_KEY || ''
 };
 
 export const stellarNetwork = 'https://horizon-testnet.stellar.org/';
-

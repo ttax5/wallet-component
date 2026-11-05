@@ -3,6 +3,7 @@
 	import { balances } from '../stores/wallet';
 	import { SUPPORTED_ASSETS, createPayment, establishTrustline } from '../services/stellar';
 	import { addNotification, notifications } from '../stores/notifications';
+	import { stellarAccount2 } from '../stellar_account';
 	import WalletQR from '../lib/WalletQR.svelte';
 
 	let amount: number;
@@ -84,13 +85,19 @@
 
 	// Simulación del pago del cliente en la red Stellar Testnet
 	async function simulateClientPayment() {
+		if (!stellarAccount2.pubKey || !stellarAccount2.privKey) {
+			addNotification(
+				'error',
+				'Simulador no configurado',
+				'Define VITE_DEMO_ACCOUNT_2_PUBLIC_KEY y VITE_DEMO_ACCOUNT_2_PRIVATE_KEY en .env.'
+			);
+			return;
+		}
+
 		isSimulating = true;
 		addNotification('security', 'Simulador Cliente', 'Creando transacción Stellar del cliente...');
 		
-		const clientAccount = {
-			pubKey: 'GAMWGOJMSHBEQXO2SFI2YEDCH6FLC56XB5GKWC6JHTXLI5B4EJZGBVBL',
-			privKey: 'SDDF5OKB6E6A3DZB3ZWRKUZ2PQ4KDNLEX2Q2RDFPPRXR3HNJNP4N3SCB'
-		};
+		const clientAccount = stellarAccount2;
 
 		try {
 			const payment = await createPayment(

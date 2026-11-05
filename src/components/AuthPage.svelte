@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { initGoogleAuth, authenticateWithGoogle, authenticateDeveloper, recoverAccount } from '../services/auth';
+	import { authenticateWithGooglePopup, authenticateDeveloper, recoverAccount } from '../services/auth';
 	import { crearYFondearWalletTestnet } from '../services/stellar';
+	import { stellarAccount1 } from '../stellar_account';
 	import { addNotification } from '../stores/notifications';
 
 	let activeTab: 'google' | 'developer' | 'recovery' = 'google';
 	
-	// Para login de desarrollador
-	let devPubKey = 'GAISBLYYRGUC5E4BOLOJSEGTJCRAMFEMUX6JK42NMVR3UAL567GDD7ML';
-	let devPrivKey = 'SCATEAOCBWHTOGVS6TWC6HE36YX5XCHOETNWL3OISKESUVL3OR7ZQMPT';
+	// Para login de desarrollador (llaves demo cargadas desde .env)
+	let devPubKey = stellarAccount1.pubKey;
+	let devPrivKey = stellarAccount1.privKey;
 	
 	// Para recuperación
 	let recoveryKey = '';
@@ -16,38 +16,15 @@
 
 	let loadingDev = false;
 	let showDevPasswords = false;
+	let loadingGoogle = false;
 
-	onMount(() => {
-		// Inicializar la API de Google con callback de éxito
-		initGoogleAuth(async (googleUser) => {
-			await authenticateWithGoogle(googleUser);
-		});
-		
-		// Renderizar botón si estamos en la pestaña google
-		renderButton();
-	});
-
-	function renderButton() {
-		setTimeout(() => {
-			// @ts-ignore
-			if (window.google && document.getElementById('googleBtnContainer')) {
-				// @ts-ignore
-				window.google.accounts.id.renderButton(
-					document.getElementById('googleBtnContainer'),
-					{
-						theme: 'filled_blue',
-						size: 'large',
-						shape: 'pill',
-						width: 340,
-						locale: 'es'
-					}
-				);
-			}
-		}, 100);
-	}
-
-	$: if (activeTab === 'google') {
-		renderButton();
+	async function handleGoogleLogin() {
+		loadingGoogle = true;
+		try {
+			await authenticateWithGooglePopup();
+		} finally {
+			loadingGoogle = false;
+		}
 	}
 
 	async function handleDeveloperLogin() {
@@ -141,16 +118,34 @@
 					Inicia sesión de forma segura usando tu cuenta de Google. Tu billetera Stellar no custodia se generará o recuperará a partir de tu identidad.
 				</p>
 				
-				<!-- Google Button Container -->
+				<!-- Botón de Google (ventana emergente de Firebase) -->
 				<div class="w-full flex justify-center py-2 min-h-[50px]">
-					<div id="googleBtnContainer" class="hover:scale-102 transition-transform duration-200"></div>
+					<button
+						type="button"
+						on:click={handleGoogleLogin}
+						disabled={loadingGoogle}
+						class="w-full max-w-[340px] h-[40px] flex items-center justify-center gap-3 rounded-full bg-white text-slate-700 text-sm font-medium shadow-sm hover:bg-slate-50 hover:scale-[1.02] disabled:opacity-60 disabled:hover:scale-100 transition-all"
+					>
+						{#if loadingGoogle}
+							<span class="w-5 h-5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin"></span>
+							Conectando con Google...
+						{:else}
+							<svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+								<path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.654 32.657 29.223 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+								<path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+								<path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+								<path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+							</svg>
+							Acceder con Google
+						{/if}
+					</button>
 				</div>
 
 				<div class="flex items-center gap-2 mt-6 text-[10px] text-slate-500">
 					<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
 						<path fill-rule="evenodd" d="M2.166 4.9L10 9.554L17.834 4.9a2 2 0 00-2.333-.19L10 7.848L4.5 4.71a2 2 0 00-2.333.19zM18 6.943v6.07a2 2 0 01-1.096 1.78L10 18.577l-6.904-3.784A2 2 0 012 13.013V6.943l8 4.708l8-4.708z" clip-rule="evenodd" />
 					</svg>
-					OAuth 2.0 gestionado directamente por Google
+					OAuth 2.0 gestionado por Firebase Auth
 				</div>
 			</div>
 		{:else if activeTab === 'developer'}
@@ -235,7 +230,7 @@
 						rows="3"
 						class="w-full bg-slate-950 border-slate-800 text-slate-200 text-xs px-3 py-2.5 rounded-xl mt-1 font-mono focus:border-indigo-500 resize-none outline-none border transition-all"
 						bind:value={recoveryKey}
-						placeholder="SCATEAOCBW..."
+						placeholder="S..."
 					></textarea>
 				</div>
 

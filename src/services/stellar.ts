@@ -12,34 +12,41 @@ const network = Networks.TESTNET;
 
 export let horizonEventSource: EventSource | null = null;
 
-// Faucet / Emisor central de USDC y USDT en Testnet para pruebas
-const FAUCET_PUB = 'GAZTQJBGXOXT5C34JH3RDHYLMFAANXMQLBKJKOEMVBBEAVOB3HHSSAUD';
-const FAUCET_PRIV = 'SBYVPORGBKBYGLGHPDZ7BIFZR5LL666I25YXXLS3GP3ZEU4BOCONXYY2';
+// Faucet / Emisor central de USDC y USDT en Testnet para pruebas.
+// Las claves se cargan desde .env (ignorado por git); ver .env.example.
+const FAUCET_PUB = import.meta.env.VITE_FAUCET_PUBLIC_KEY || '';
+const FAUCET_PRIV = import.meta.env.VITE_FAUCET_PRIVATE_KEY || '';
+
+const XLM_ASSET = {
+	code: 'XLM',
+	name: 'Stellar Lumens',
+	logo: 'https://cryptologos.cc/logos/stellar-xlm-logo.png',
+	issuer: undefined as string | undefined,
+	type: 'native'
+};
+
+// Los activos de crédito solo se ofrecen si hay un emisor configurado.
+const CREDIT_ASSETS = FAUCET_PUB
+	? [
+			{
+				code: 'USDC',
+				name: 'USD Coin',
+				logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+				issuer: FAUCET_PUB,
+				type: 'credit_alphanum4'
+			},
+			{
+				code: 'USDT',
+				name: 'Tether USD',
+				logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+				issuer: FAUCET_PUB,
+				type: 'credit_alphanum4'
+			}
+		]
+	: [];
 
 // Lista de activos admitidos por defecto en nuestra interfaz
-export const SUPPORTED_ASSETS = [
-	{
-		code: 'XLM',
-		name: 'Stellar Lumens',
-		logo: 'https://cryptologos.cc/logos/stellar-xlm-logo.png',
-		issuer: undefined,
-		type: 'native'
-	},
-	{
-		code: 'USDC',
-		name: 'USD Coin',
-		logo: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-		issuer: FAUCET_PUB,
-		type: 'credit_alphanum4'
-	},
-	{
-		code: 'USDT',
-		name: 'Tether USD',
-		logo: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-		issuer: FAUCET_PUB,
-		type: 'credit_alphanum4'
-	}
-];
+export const SUPPORTED_ASSETS = [XLM_ASSET, ...CREDIT_ASSETS];
 
 // Helper para sincronizar transacciones en Firestore
 export async function syncTransactionToFirestore(uid: string, record: any) {
@@ -65,6 +72,12 @@ export async function syncTransactionToFirestore(uid: string, record: any) {
 // Faucet automático para activos secundarios
 export async function fundWithFaucet(userPubKey: string, assetCode: string, assetIssuer: string) {
 	try {
+		if (!FAUCET_PRIV || !FAUCET_PUB) {
+			console.warn(
+				'Faucet no configurado: define VITE_FAUCET_PUBLIC_KEY y VITE_FAUCET_PRIVATE_KEY en .env'
+			);
+			return;
+		}
 		console.log(`Fondeando 1000 ${assetCode} al usuario desde Faucet...`);
 		const faucetKeys = StellarSdk.Keypair.fromSecret(FAUCET_PRIV);
 		const faucetAccount = await server.loadAccount(FAUCET_PUB);

@@ -69,3 +69,27 @@ config.local.json
 local.settings.json
 *.secret
 *.secrets
+
+# Credenciales locales de herramientas (pueden contener tokens de registro/CI)
+.npmrc
+.yarnrc.yml
+.pypirc
+.envrc
+.direnv/
+application_default_credentials.json
+.aws/
+.azure/
+.gcloud/
+
+# Estado de infraestructura (puede contener secretos en texto plano)
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.auto.tfvars
+.terraform/
+
+# Artefactos de build/caché que pueden incluir variables VITE_* inlineadas
+.vite/
+.svelte-kit/
+coverage/
+*.tsbuildinfo
